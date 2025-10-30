@@ -33,6 +33,8 @@ const categories = [
 ]
 
 const toggleMobileMenu = () => {
+  console.log("test");
+  
   mobileMenuOpen.value = !mobileMenuOpen.value
 }
 
