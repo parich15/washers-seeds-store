@@ -1,0 +1,19 @@
+/* FONTS */
+
+/* MAIN FONT */
+@font-face {
+    font-family: 'Walking in the street';
+    src: url('../fonts/WalkingInTheStreet.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* SECONDARY FONT - NUNITO */
+@font-face {
+    font-family: 'Nunito';
+    src: url('../fonts/Nunito-VariableFont_wght.ttf') format('truetype');
+    font-weight: 200 1000;
+    font-style: normal;
+    font-display: swap;
+}

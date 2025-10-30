@@ -10,5 +10,23 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@nuxt/image',
     'nuxt-directus'
+  ],
+
+  css: [
+    '~/assets/css/fonts.css',
+    '~/assets/css/main.css',
+  ],
+
+  tailwindcss: {
+    cssPath: '~/assets/css/main.css',
+    configPath: 'tailwind.config.js',
+  },
+
+  components: [
+    {
+      path: '~/components',
+      pathPrefix: false,
+    }
   ]
+
 })
