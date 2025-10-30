@@ -54,7 +54,7 @@ const handleSearch = () => {
               <Icon icon="mdi:phone" class="text-lg" />
               <span class="hidden sm:inline">96 206 62 98</span>
             </a>
-            <span class="hidden md:inline">Envío Gratis desde 30€</span>
+            <span class="md:inline animate-pulse">Work in progress</span>
           </div>
           <div class="flex items-center gap-2">
             <Icon icon="mdi:shield-check" class="text-lg" />

@@ -38,7 +38,9 @@ const categoryProducts = computed(() => {
     }
     
     // Filtrar por precio
-    if (p.price.amount < priceRange.value[0] || p.price.amount > priceRange.value[1]) {
+    const minPrice = priceRange.value[0] ?? 0
+    const maxPrice = priceRange.value[1] ?? 100
+    if (p.price.amount < minPrice || p.price.amount > maxPrice) {
       return false
     }
     
@@ -228,7 +230,7 @@ const clearFilters = () => {
 
             <!-- Sort Dropdown -->
             <div class="flex items-center gap-3 w-full sm:w-auto">
-              <span class="text-sm text-gray-600 whitespace-nowrap">Ordenar por:</span>
+              <span class="hidden sm:inline text-sm text-gray-600 whitespace-nowrap">Ordenar por:</span>
               <select
                 v-model="sortBy"
                 class="flex-1 sm:flex-initial px-4 py-2 rounded-lg border border-gray-300 focus:border-main focus:ring-2 focus:ring-main/20 outline-none transition-all"

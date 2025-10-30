@@ -75,8 +75,8 @@ const handleAddToCart = (event: Event) => {
         {{ product.brand.name }}
       </p>
 
-      <!-- Name -->
-      <h3 class="font-bold text-base mb-2 line-clamp-2 group-hover:text-main transition-colors">
+      <!-- Name - altura fija para estandarizar -->
+      <h3 class="font-bold text-base mb-2 line-clamp-2 group-hover:text-main transition-colors h-12">
         {{ product.name }}
       </h3>
 
@@ -92,8 +92,8 @@ const handleAddToCart = (event: Event) => {
         <span class="text-xs text-gray-500">({{ product.reviewsCount }})</span>
       </div>
 
-      <!-- Tags (for seeds) -->
-      <div v-if="product.type === 'seed' && product.tags" class="flex flex-wrap gap-1 mb-3">
+      <!-- Tags (for seeds) - OCULTOS POR AHORA -->
+      <!-- <div v-if="product.type === 'seed' && product.tags" class="flex flex-wrap gap-1 mb-3">
         <BaseBadge
           v-for="tag in product.tags.slice(0, 3)"
           :key="tag"
@@ -102,12 +102,12 @@ const handleAddToCart = (event: Event) => {
         >
           {{ tag }}
         </BaseBadge>
-      </div>
+      </div> -->
 
       <!-- Price -->
       <div class="flex items-center justify-between">
         <div class="flex items-baseline gap-2">
-          <span class="price text-main">
+          <span class="price text-gray-900">
             {{ priceDisplay.current }}
             <span class="price-currency">€</span>
           </span>

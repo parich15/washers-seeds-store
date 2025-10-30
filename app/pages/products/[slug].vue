@@ -150,7 +150,7 @@ const decrementQuantity = () => {
           <!-- Price -->
           <div class="mb-6">
             <div class="flex items-baseline gap-3">
-              <span class="text-4xl font-bold text-main">
+              <span class="text-4xl font-bold text-gray-900">
                 {{ product.price.amount.toFixed(2) }}€
               </span>
               <span v-if="product.price.oldPrice" class="text-2xl text-gray-400 line-through">
@@ -270,11 +270,11 @@ const decrementQuantity = () => {
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-gray-50 rounded-lg p-4">
                   <p class="text-sm text-gray-600 mb-1">THC</p>
-                  <p class="text-lg font-bold text-main">{{ seedProduct.genetics.thc }}</p>
+                  <p class="text-lg font-bold text-gray-900">{{ seedProduct.genetics.thc }}</p>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4">
                   <p class="text-sm text-gray-600 mb-1">CBD</p>
-                  <p class="text-lg font-bold text-secondary">{{ seedProduct.genetics.cbd }}</p>
+                  <p class="text-lg font-bold text-gray-900">{{ seedProduct.genetics.cbd }}</p>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4">
                   <p class="text-sm text-gray-600 mb-1">Dominancia</p>

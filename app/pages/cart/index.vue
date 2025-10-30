@@ -159,7 +159,7 @@ const continueShopping = () => {
                   <!-- Price -->
                   <div class="flex items-center justify-between sm:justify-end gap-4">
                     <div class="text-right">
-                      <p class="text-2xl font-bold text-main">
+                      <p class="text-2xl font-bold text-gray-900">
                         {{ (item.product.price.amount * item.quantity).toFixed(2) }}€
                       </p>
                       <p v-if="item.quantity > 1" class="text-sm text-gray-500">
@@ -233,7 +233,7 @@ const continueShopping = () => {
             <!-- Total -->
             <div class="flex justify-between items-center mb-6">
               <span class="text-xl font-bold">Total</span>
-              <span class="text-3xl font-bold text-gradient">
+              <span class="text-3xl font-bold text-gray-900">
                 {{ cartSummary.total.toFixed(2) }}€
               </span>
             </div>

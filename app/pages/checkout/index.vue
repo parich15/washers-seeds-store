@@ -542,7 +542,7 @@ const goBackToCart = () => {
 
             <div class="flex justify-between items-center">
               <span class="text-lg font-bold">Total</span>
-              <span class="text-2xl font-bold text-gradient">
+              <span class="text-2xl font-bold text-gray-900">
                 {{ cartSummary.total.toFixed(2) }}€
               </span>
             </div>
