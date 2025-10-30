@@ -1,0 +1,27 @@
+/* FONTS */
+
+/* MAIN FONT */
+@font-face {
+    font-family: 'Walking in the street';
+    src: url('../fonts/WalkingInTheStreet.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* SECONDARY FONT */
+@font-face {
+    font-family: 'Heading Now Trial';
+    src: url('../fonts/HeadingNowTrial-Regular.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Heading Now Trial';
+    src: url('../fonts/HeadingNowTrial-Bold.ttf') format('truetype');
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
