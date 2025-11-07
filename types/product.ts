@@ -20,7 +20,11 @@ export interface ProductoBase {
   meta_descripcion: string | null
   meta_keywords: string | null
   galeria: any[]  // Array de IDs/UUIDs de assets de Directus
-  relacionados: number[]  // IDs de productos relacionados
+  relacionados: RelacionProducto[]  // Productos relacionados
+}
+
+export interface RelacionProducto {
+  related_productos_id: ProductoBase
 }
 
 // ========== CANTIDAD (Para precios por cantidad en Semillas) ==========
@@ -73,12 +77,60 @@ export type SeedDifficulty =
   | 'Medio' 
   | 'Difícil'
 
+// ========== ROPA (Colección ropa) ==========
+export interface Ropa {
+  id: number
+  tallas: Talla[]
+  colores: Color[]
+  categoria: RopaCategory
+  producto: ProductoBase  // Relación con producto base
+}
+
+export interface Talla {
+  talla: string  // 'S', 'M', 'L', 'XL', 'XXL'
+}
+
+export interface Color {
+  color: string
+}
+
+export type RopaCategory = 
+  | 'Sudadera' 
+  | 'Camiseta' 
+  | 'Gorra' 
+  | 'Pantalon' 
+  | 'Accesorios'
+
+// ========== TIPOS AUXILIARES ==========
+
+// Union type para items de colección
+export type CollectionItem = Semilla | Ropa
+
+// Tipo de colección
+export type CollectionType = 'semillas' | 'ropa'
+
 // ========== FILTROS DE SEMILLAS ==========
 
 export interface SemillaFilters {
   categoria?: SeedCategory[]
   dominancia?: SeedDominance[]
   dificultad?: SeedDifficulty[]
+  diasFloracionMin?: number
+  diasFloracionMax?: number
+  precioMin?: number
+  precioMax?: number
+  disponible?: boolean
+  nuevo?: boolean
+  descuento?: boolean
+  search?: string
+}
+
+// ========== FILTROS DE ROPA ==========
+
+export interface RopaFilters {
+  categoria?: RopaCategory[]
+  tallas?: string[]
+  colores?: string[]
   precioMin?: number
   precioMax?: number
   disponible?: boolean
@@ -134,4 +186,28 @@ export function getGaleriaUrls(galeria: any[], directusUrl: string): string[] {
 export function getImagenPrincipalUrl(uuid: string | null, directusUrl: string): string {
   if (!uuid) return '/placeholder.jpg'
   return `${directusUrl}/assets/${uuid}`
+}
+
+/**
+ * Obtiene el precio de cualquier item de colección (Semilla o Ropa)
+ */
+export function getPrecioItem(item: CollectionItem): {
+  precio: number
+  precioDescuento: number | null
+  tieneDescuento: boolean
+  cantidad?: number
+} {
+  // Si es Semilla, precio desde cantidades[0]
+  if ('cantidades' in item) {
+    return getSemillaPrecio(item)
+  }
+  
+  // Si es Ropa, precio desde producto
+  return {
+    precio: parseFloat(item.producto.precio),
+    precioDescuento: item.producto.descuento 
+      ? parseFloat(item.producto.precio_descuento!) 
+      : null,
+    tieneDescuento: item.producto.descuento
+  }
 }

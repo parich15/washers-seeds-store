@@ -10,6 +10,51 @@ const { semillas, pending } = await fetchSemillas()
 // Productos destacados (primeras 10 semillas)
 const featuredSeeds = computed(() => semillas.value?.slice(0, 10) || [])
 
+// Newsletter
+const newsletterEmail = ref('')
+const newsletterError = ref('')
+const newsletterSuccess = ref(false)
+const isSubmittingNewsletter = ref(false)
+
+const handleNewsletterSubmit = async () => {
+  // Limpiar mensajes previos
+  newsletterError.value = ''
+  newsletterSuccess.value = false
+
+  // Validación básica
+  if (!newsletterEmail.value || !newsletterEmail.value.includes('@')) {
+    newsletterError.value = 'Por favor, introduce un email válido'
+    return
+  }
+
+  isSubmittingNewsletter.value = true
+
+  try {
+    const response = await $fetch('/api/newsletter', {
+      method: 'POST',
+      body: {
+        email: newsletterEmail.value
+      }
+    })
+
+    newsletterSuccess.value = true
+    newsletterEmail.value = ''
+    
+    // Ocultar mensaje de éxito después de 5 segundos
+    setTimeout(() => {
+      newsletterSuccess.value = false
+    }, 5000)
+  } catch (error: any) {
+    if (error.statusCode === 400) {
+      newsletterError.value = 'Este email ya está suscrito a nuestro newsletter'
+    } else {
+      newsletterError.value = 'Hubo un error al procesar tu suscripción. Por favor, intenta de nuevo.'
+    }
+  } finally {
+    isSubmittingNewsletter.value = false
+  }
+}
+
 // Configuración del carousel
 const carouselSettings = {
   itemsToShow: 1,
@@ -254,16 +299,54 @@ const featuredCategories = [
           <p class="text-lg mb-8 opacity-90">
             Recibe ofertas exclusivas, consejos de cultivo y las últimas novedades
           </p>
-          <form class="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto" @submit.prevent>
+          <form class="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto" @submit.prevent="handleNewsletterSubmit">
             <input
+              v-model="newsletterEmail"
               type="email"
               placeholder="Tu email"
-              class="flex-1 px-6 py-4 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-white"
+              required
+              :disabled="isSubmittingNewsletter"
+              class="flex-1 px-6 py-4 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-            <BaseButton variant="secondary" size="lg" type="submit">
-              Suscribirse
+            <BaseButton 
+              variant="secondary" 
+              size="lg" 
+              type="submit"
+              :disabled="isSubmittingNewsletter"
+            >
+              {{ isSubmittingNewsletter ? 'Enviando...' : 'Suscribirse' }}
             </BaseButton>
           </form>
+
+          <!-- Success Message -->
+          <Transition
+            enter-active-class="transition-all duration-300"
+            enter-from-class="opacity-0 translate-y-2"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition-all duration-200"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 translate-y-2"
+          >
+            <div v-if="newsletterSuccess" class="mt-4 p-4 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg">
+              <Icon icon="mdi:check-circle" class="inline text-xl mr-2" />
+              <span class="font-medium">¡Gracias por suscribirte! Pronto recibirás nuestras novedades.</span>
+            </div>
+          </Transition>
+
+          <!-- Error Message -->
+          <Transition
+            enter-active-class="transition-all duration-300"
+            enter-from-class="opacity-0 translate-y-2"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition-all duration-200"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 translate-y-2"
+          >
+            <div v-if="newsletterError" class="mt-4 p-4 bg-red-500/20 backdrop-blur-sm border border-red-300/30 rounded-lg">
+              <Icon icon="mdi:alert-circle" class="inline text-xl mr-2" />
+              <span class="font-medium">{{ newsletterError }}</span>
+            </div>
+          </Transition>
         </div>
       </div>
     </section>

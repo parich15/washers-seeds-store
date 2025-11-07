@@ -2,31 +2,34 @@
 import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useCartStore } from '../../stores/cart'
-import { getSemillaPrecio } from '../../../types/product'
-import type { Semilla } from '../../../types'
+import { getPrecioItem } from '../../../types/product'
+import type { Ropa } from '../../../types'
 
 interface Props {
-  semilla: Semilla
+  ropa: Ropa
 }
 
 const props = defineProps<Props>()
 const cartStore = useCartStore()
-const { getImageUrl } = useSemillas()
+const { getImageUrl } = useProducts()
 
 const addedToCart = ref(false)
 const imageError = ref(false)
 
-// Obtener precio desde cantidades
-const precioInfo = computed(() => getSemillaPrecio(props.semilla))
+// Obtener precio desde producto
+const precioInfo = computed(() => getPrecioItem(props.ropa))
 
 // URL de imagen con fallback
 const imageUrl = computed(() => {
-  return getImageUrl(props.semilla.producto.imagen_principal)
+  if (imageError.value) {
+    return 'https://placehold.co/600x600/36A9E1/FFF?text=Sin+Imagen'
+  }
+  return getImageUrl(props.ropa.producto.imagen_principal)
 })
 
 // Manejar error de carga de imagen
 const handleImageError = () => {
-  console.error('Error loading image for:', props.semilla.producto.nombre, 'UUID:', props.semilla.producto.imagen_principal)
+  console.error('Error loading image for:', props.ropa.producto.nombre, 'UUID:', props.ropa.producto.imagen_principal)
   imageError.value = true
 }
 
@@ -54,8 +57,8 @@ const handleAddToCart = (event: Event) => {
   event.preventDefault()
   event.stopPropagation()
   
-  // TODO: Adaptar addProductToCart para trabajar con Semillas
-  // cartStore.addProductToCart(props.semilla, 1)
+  // TODO: Adaptar addProductToCart para trabajar con Ropa
+  // cartStore.addProductToCart(props.ropa, 1)
   
   // Mostrar feedback visual
   addedToCart.value = true
@@ -66,30 +69,30 @@ const handleAddToCart = (event: Event) => {
 </script>
 
 <template>
-  <NuxtLink :to="`/products/semillas/${semilla.producto.slug}`" class="product-card group">
+  <NuxtLink :to="`/products/ropa/${ropa.producto.slug}`" class="product-card group">
     <!-- Image Container -->
     <div class="relative aspect-square overflow-hidden">
       <img
         :src="imageUrl"
-        :alt="semilla.producto.nombre"
+        :alt="ropa.producto.nombre"
         class="product-card-image"
         @error="handleImageError"
       >
       
       <!-- Badges -->
       <div class="absolute top-2 left-2 flex flex-col gap-2 z-10">
-        <BaseBadge v-if="semilla.producto.nuevo" variant="gradient" size="sm">
+        <BaseBadge v-if="ropa.producto.nuevo" variant="gradient" size="sm">
           Nuevo
         </BaseBadge>
-        <!-- Categoría de semilla -->
-        <BaseBadge variant="primary" size="sm">
-          {{ semilla.categoria }}
-        </BaseBadge>
-        <BaseBadge v-if="precioInfo.tieneDescuento && priceDisplay.discount" variant="danger" size="sm" class="w-fit">
+        <BaseBadge v-if="precioInfo.tieneDescuento && priceDisplay.discount" variant="danger" size="sm">
           -{{ priceDisplay.discount }}%
         </BaseBadge>
-        <BaseBadge v-if="!semilla.producto.disponible" variant="secondary" size="sm">
+        <BaseBadge v-if="!ropa.producto.disponible" variant="secondary" size="sm">
           Agotado
+        </BaseBadge>
+        <!-- Categoría de ropa -->
+        <BaseBadge variant="primary" size="sm">
+          {{ ropa.categoria }}
         </BaseBadge>
       </div>
 
@@ -101,7 +104,7 @@ const handleAddToCart = (event: Event) => {
           size="sm"
           icon="mdi:cart-plus"
           full-width
-          :disabled="!semilla.producto.disponible"
+          :disabled="!ropa.producto.disponible"
           @click="handleAddToCart"
         >
           Añadir al carrito
@@ -118,36 +121,47 @@ const handleAddToCart = (event: Event) => {
 
     <!-- Product Info -->
     <div class="card-body">
-      <!-- Dominancia -->
-      <div class="flex items-center gap-2 mb-1">
-        <Icon 
-          :icon="semilla.dominancia === 'indica' ? 'mdi:leaf' : semilla.dominancia === 'sativa' ? 'mdi:flower' : 'mdi:leaf-maple'" 
-          class="text-main text-sm"
-        />
-        <p class="text-xs text-gray-500 capitalize">
-          {{ semilla.dominancia }}
-        </p>
+      <!-- Tallas disponibles -->
+      <div class="flex items-center gap-2 mb-1 flex-wrap">
+        <Icon icon="mdi:hanger" class="text-main text-sm" />
+        <div class="flex gap-1">
+          <span 
+            v-for="talla in ropa.tallas.slice(0, 4)" 
+            :key="talla.talla"
+            class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded"
+          >
+            {{ talla.talla }}
+          </span>
+          <span v-if="ropa.tallas.length > 4" class="text-xs text-gray-500">
+            +{{ ropa.tallas.length - 4 }}
+          </span>
+        </div>
       </div>
 
       <!-- Name - altura fija para estandarizar -->
       <h3 class="font-semibold text-base mb-2 line-clamp-2 group-hover:text-main transition-colors h-12" style="font-family: var(--font-text)">
-        {{ semilla.producto.nombre }}
+        {{ ropa.producto.nombre }}
       </h3>
 
       <!-- Short Description -->
-      <p v-if="semilla.producto.descripcion_corta" class="text-sm text-gray-600 mb-3 line-clamp-2">
-        {{ semilla.producto.descripcion_corta }}
+      <p v-if="ropa.producto.descripcion_corta" class="text-sm text-gray-600 mb-3 line-clamp-2">
+        {{ ropa.producto.descripcion_corta }}
       </p>
 
-      <!-- THC/CBD -->
-      <div class="flex items-center gap-3 mb-3 text-xs">
-        <div class="flex items-center gap-1">
-          <span class="font-semibold text-gray-700">THC:</span>
-          <span class="text-gray-600">{{ semilla.thc }}</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <span class="font-semibold text-gray-700">CBD:</span>
-          <span class="text-gray-600">{{ semilla.cbd }}</span>
+      <!-- Colores disponibles (si hay) -->
+      <div v-if="ropa.colores && ropa.colores.length > 0" class="flex items-center gap-2 mb-3">
+        <Icon icon="mdi:palette" class="text-sm text-gray-500" />
+        <div class="flex gap-1">
+          <span 
+            v-for="color in ropa.colores.slice(0, 3)" 
+            :key="color.color"
+            class="text-xs text-gray-600"
+          >
+            {{ color.color }}
+          </span>
+          <span v-if="ropa.colores.length > 3" class="text-xs text-gray-500">
+            +{{ ropa.colores.length - 3 }}
+          </span>
         </div>
       </div>
 
@@ -163,8 +177,8 @@ const handleAddToCart = (event: Event) => {
           </span>
         </div>
         
-        <div class="text-xs text-gray-500">
-          {{ precioInfo.cantidad }} {{ precioInfo.cantidad === 1 ? 'ud' : 'uds' }}
+        <div v-if="ropa.producto.stock > 0" class="text-xs text-gray-500">
+          Stock: {{ ropa.producto.stock }}
         </div>
       </div>
     </div>
