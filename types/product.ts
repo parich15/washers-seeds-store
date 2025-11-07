@@ -1,124 +1,137 @@
-// ==================== PRODUCT TYPES ====================
+// ==================== PRODUCT TYPES - DIRECTUS ====================
+// Tipos que reflejan la estructura de Directus
 
-import type { Image, Price, Review, ProductType, SeedType } from './common'
-
-export interface Category {
-  id: string
-  name: string
-  slug: string
-  description?: string
-  image?: Image
-  parent?: string
-  productsCount?: number
-}
-
-export interface Brand {
-  id: string
-  name: string
-  slug: string
-  logo?: Image
-  description?: string
-}
-
-// Base product interface
-export interface BaseProduct {
-  id: string
-  name: string
-  slug: string
-  description: string
-  shortDescription?: string
-  images: Image[]
-  price: Price
+// ========== PRODUCTO BASE (Colección principal) ==========
+export interface ProductoBase {
+  id: number
+  nombre: string
+  imagen_principal: string | null
+  disponible: boolean
+  descripcion_corta: string
+  precio: string  // Usado en Ropa, no en Semillas
   stock: number
-  inStock: boolean
-  category: Category
-  brand?: Brand
-  tags?: string[]
-  featured?: boolean
-  new?: boolean
-  onSale?: boolean
-  rating?: number
-  reviewsCount?: number
-  reviews?: Review[]
-  type: ProductType
-  sku?: string
-  createdAt?: string
-  updatedAt?: string
+  sku: string
+  slug: string
+  descripcion: string
+  nuevo: boolean
+  descuento: boolean
+  precio_descuento: string | null
+  meta_titulo: string | null
+  meta_descripcion: string | null
+  meta_keywords: string | null
+  galeria: any[]  // Array de IDs/UUIDs de assets de Directus
+  relacionados: number[]  // IDs de productos relacionados
 }
 
-// Seed-specific properties
-export interface SeedProduct extends BaseProduct {
-  type: 'seed'
-  seedType: SeedType
-  genetics: {
-    thc?: string
-    cbd?: string
-    lineage?: string
-    dominance?: 'indica' | 'sativa' | 'hybrid'
-  }
-  growing: {
-    floweringTime?: string
-    yield?: string
-    height?: string
-    difficulty?: 'easy' | 'medium' | 'hard'
-    climate?: string[]
-  }
-  effects?: string[]
-  flavors?: string[]
-  medical?: string[]
-  feminized?: boolean
-  autoflowering?: boolean
-  packSize?: number // número de semillas en el pack
+// ========== CANTIDAD (Para precios por cantidad en Semillas) ==========
+export interface Cantidad {
+  cantidad: number
+  precio: string
+  descuento: boolean
+  precio_descuento: string
 }
 
-// Paraphernalia product
-export interface ParaphernaliaProduct extends BaseProduct {
-  type: 'product'
-  specifications: {
-    material?: string
-    dimensions?: string
-    weight?: string
-    color?: string
-    capacity?: string
-    [key: string]: string | undefined
-  }
-  features?: string[]
-  instructions?: string
+// ========== SEMILLA (Colección semillas) ==========
+export interface Semilla {
+  id: number
+  categoria: SeedCategory
+  cantidades: Cantidad[]  // ⚠️ IMPORTANTE: El precio real está aquí, no en producto.precio
+  thc: string
+  cbd: string
+  linaje: string
+  dominancia: SeedDominance
+  dias_floracion: number
+  texto_floracion: string
+  rendimiento_interior: string
+  rendimiento_exterior: string
+  altura_interior: string
+  altura_exterior: string
+  dificultad: SeedDifficulty
+  zonas_climaticas: string[]
+  efectos: string[]
+  sabores: string[]
+  aromas: string[]
+  medicinales: string[] | null
+  producto: ProductoBase  // Relación con producto base
 }
 
-// Union type for all products
-export type Product = SeedProduct | ParaphernaliaProduct
+// ========== ENUMS Y TYPES ==========
 
-// Product filters
-export interface ProductFilters {
-  categories?: string[]
-  brands?: string[]
-  priceRange?: {
-    min: number
-    max: number
-  }
-  seedTypes?: SeedType[]
-  inStock?: boolean
-  onSale?: boolean
-  rating?: number
-  tags?: string[]
+export type SeedCategory = 
+  | 'Feminizadas' 
+  | 'Autoflorecientes' 
+  | 'Regulares' 
+  | 'CBD'
+
+export type SeedDominance = 
+  | 'indica' 
+  | 'sativa' 
+  | 'hibrida'
+
+export type SeedDifficulty = 
+  | 'Fácil' 
+  | 'Medio' 
+  | 'Difícil'
+
+// ========== FILTROS DE SEMILLAS ==========
+
+export interface SemillaFilters {
+  categoria?: SeedCategory[]
+  dominancia?: SeedDominance[]
+  dificultad?: SeedDifficulty[]
+  precioMin?: number
+  precioMax?: number
+  disponible?: boolean
+  nuevo?: boolean
+  descuento?: boolean
   search?: string
 }
 
-// Product sort options
-export type ProductSortBy = 
-  | 'newest' 
-  | 'oldest' 
-  | 'price-asc' 
-  | 'price-desc' 
-  | 'name-asc' 
-  | 'name-desc' 
-  | 'popular' 
-  | 'rating'
+// ========== HELPERS ==========
 
-export interface ProductQuery {
-  filters?: ProductFilters
-  sortBy?: ProductSortBy
-  page?: number
-  perPage?: number
+/**
+ * Obtiene el precio de una semilla desde el array de cantidades
+ * Usa la primera cantidad como referencia
+ */
+export function getSemillaPrecio(semilla: Semilla): {
+  precio: number
+  precioDescuento: number | null
+  tieneDescuento: boolean
+  cantidad: number
+} {
+  if (!semilla.cantidades || semilla.cantidades.length === 0) {
+    return {
+      precio: 0,
+      precioDescuento: null,
+      tieneDescuento: false,
+      cantidad: 1
+    }
+  }
+  
+  const primeraCantidad = semilla.cantidades[0]!
+  
+  return {
+    precio: parseFloat(primeraCantidad.precio),
+    precioDescuento: primeraCantidad.descuento 
+      ? parseFloat(primeraCantidad.precio_descuento) 
+      : null,
+    tieneDescuento: primeraCantidad.descuento,
+    cantidad: primeraCantidad.cantidad
+  }
+}
+
+/**
+ * Convierte array de galería a URLs de assets de Directus
+ */
+export function getGaleriaUrls(galeria: any[], directusUrl: string): string[] {
+  if (!galeria || galeria.length === 0) return []
+  return galeria.map(id => `${directusUrl}/assets/${id}`)
+}
+
+/**
+ * Obtiene la URL de la imagen principal
+ */
+export function getImagenPrincipalUrl(uuid: string | null, directusUrl: string): string {
+  if (!uuid) return '/placeholder.jpg'
+  return `${directusUrl}/assets/${uuid}`
 }

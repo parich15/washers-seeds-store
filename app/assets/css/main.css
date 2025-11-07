@@ -236,7 +236,7 @@
   }
   
   .badge-primary {
-    @apply bg-[rgb(54,169,225)]/10 text-[rgb(54,169,225)];
+    @apply bg-extra text-white;
   }
   
   .badge-secondary {
@@ -330,7 +330,7 @@
   /* Price display */
   .price {
     @apply font-bold text-xl;
-    font-family: var(--font-main);
+    font-family: var(--font-text);
   }
   
   .price-currency {

@@ -2,10 +2,13 @@
 import { Icon } from '@iconify/vue'
 import { Carousel, Slide, Navigation } from 'vue3-carousel'
 import 'vue3-carousel/dist/carousel.css'
-import { getFeaturedProducts } from '../data/mock-products'
 
-// Productos destacados
-const featuredProducts = getFeaturedProducts()
+// Obtener semillas desde Directus
+const { fetchSemillas } = useSemillas()
+const { semillas, pending } = await fetchSemillas()
+
+// Productos destacados (primeras 10 semillas)
+const featuredSeeds = computed(() => semillas.value?.slice(0, 10) || [])
 
 // Configuración del carousel
 const carouselSettings = {
@@ -205,10 +208,10 @@ const featuredCategories = [
           </p>
         </div>
 
-        <Carousel v-bind="carouselSettings">
-          <Slide v-for="product in featuredProducts" :key="product.id">
+        <Carousel v-if="!pending && featuredSeeds.length > 0" v-bind="carouselSettings">
+          <Slide v-for="semilla in featuredSeeds" :key="semilla.id">
             <div class="px-2">
-              <ProductCard :product="product" />
+              <SeedCard :semilla="semilla" />
             </div>
           </Slide>
 
@@ -216,6 +219,16 @@ const featuredCategories = [
             <Navigation />
           </template>
         </Carousel>
+        
+        <!-- Loading state -->
+        <div v-else-if="pending" class="flex justify-center items-center py-12">
+          <Icon icon="mdi:loading" class="text-4xl text-main animate-spin" />
+        </div>
+        
+        <!-- Empty state -->
+        <div v-else class="text-center py-12">
+          <p class="text-gray-600">No hay productos disponibles en este momento</p>
+        </div>
 
         <div class="text-center mt-12">
           <BaseButton

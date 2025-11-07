@@ -125,15 +125,6 @@ const decrementQuantity = () => {
             {{ product.name }}
           </h1>
 
-          <!-- Rating -->
-          <div v-if="product.rating" class="flex items-center gap-2 mb-6">
-            <div class="flex items-center gap-1">
-              <Icon icon="mdi:star" class="text-yellow-400 text-xl" />
-              <span class="text-lg font-semibold">{{ product.rating }}</span>
-            </div>
-            <span class="text-gray-500">({{ product.reviewsCount }} valoraciones)</span>
-          </div>
-
           <!-- Badges -->
           <div class="flex flex-wrap gap-2 mb-6">
             <BaseBadge v-if="product.new" variant="gradient">
