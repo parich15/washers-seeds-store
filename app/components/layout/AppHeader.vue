@@ -1,11 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useAuthStore } from '../../stores/auth'
+import { useCartStore } from '../../stores/cart'
+
+const authStore = useAuthStore()
+const cartStore = useCartStore()
 
 const mobileMenuOpen = ref(false)
 const searchQuery = ref('')
-const cartItemsCount = ref(0) // Temporalmente hardcodeado, lo conectaremos con Pinia luego
-const isAuthenticated = ref(false) // Temporalmente hardcodeado
+
+// Computed values from stores
+const cartItemsCount = computed(() => cartStore.itemsCount)
+const isAuthenticated = computed(() => authStore.isLoggedIn)
+const userFullName = computed(() => authStore.userFullName)
+
+// Check auth on mount
+onMounted(() => {
+  authStore.checkAuth()
+  cartStore.loadCart()
+})
 
 const categories = [
   {
@@ -34,7 +48,8 @@ const categories = [
 
 const toggleMobileMenu = () => {
   
-  mobileMenuOpen.value = !mobileMenuOpen.value
+  mobileMenuOpen.value = !mobileMenuOpen.value;
+  
 }
 
 const handleSearch = () => {
@@ -67,16 +82,16 @@ const handleSearch = () => {
 
     <!-- Main header -->
     <div class="container-custom">
-      <div class="flex items-center justify-between py-4 gap-4">
+      <div class="flex items-center justify-between py-4 gap-2 sm:gap-4">
         <!-- Logo -->
-        <NuxtLink to="/" class="flex-shrink-0">
-          <h1 class="text-2xl md:text-3xl font-bold text-gradient">
+        <NuxtLink to="/" class="flex-shrink-0 min-w-0">
+          <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-gradient whitespace-nowrap">
             Washer Seeds
           </h1>
         </NuxtLink>
 
         <!-- Search bar (Desktop) -->
-        <div class="hidden md:flex flex-1 max-w-2xl mx-8">
+        <div class="hidden md:flex flex-1 max-w-2xl mx-4 lg:mx-8">
           <form @submit.prevent="handleSearch" class="w-full relative">
             <input
               v-model="searchQuery"
@@ -94,7 +109,7 @@ const handleSearch = () => {
         </div>
 
         <!-- Actions -->
-        <div class="flex items-center gap-2 md:gap-4">
+        <div class="flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0">
           <!-- Search (Mobile) -->
           <button class="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
             <Icon icon="mdi:magnify" class="text-2xl text-gray-700" />
@@ -107,7 +122,7 @@ const handleSearch = () => {
           >
             <Icon icon="mdi:account-circle" class="text-2xl text-gray-700" />
             <span class="hidden lg:inline text-sm font-medium text-gray-700">
-              {{ isAuthenticated ? 'Mi Cuenta' : 'Iniciar Sesión' }}
+              {{ isAuthenticated ? userFullName : 'Iniciar Sesión' }}
             </span>
           </NuxtLink>
 
@@ -235,8 +250,17 @@ const handleSearch = () => {
               @click="mobileMenuOpen = false"
             >
               <Icon icon="mdi:account-circle" class="text-2xl" />
-              <span class="font-medium">{{ isAuthenticated ? 'Mi Cuenta' : 'Iniciar Sesión' }}</span>
+              <span class="font-medium">{{ isAuthenticated ? userFullName : 'Iniciar Sesión' }}</span>
             </NuxtLink>
+            
+            <button
+              v-if="isAuthenticated"
+              @click="authStore.logout(); mobileMenuOpen = false; $router.push('/')"
+              class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-gray-100 transition-colors text-red-600"
+            >
+              <Icon icon="mdi:logout" class="text-2xl" />
+              <span class="font-medium">Cerrar Sesión</span>
+            </button>
           </div>
         </div>
       </div>

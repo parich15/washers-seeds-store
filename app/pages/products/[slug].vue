@@ -120,8 +120,8 @@ const decrementQuantity = () => {
             {{ product.brand.name }}
           </p>
 
-          <!-- Title -->
-          <h1 class="text-3xl md:text-4xl font-bold mb-4">
+          <!-- Title - usa font-text -->
+          <h1 class="text-3xl md:text-4xl font-semibold mb-4" style="font-family: var(--font-text)">
             {{ product.name }}
           </h1>
 
@@ -174,11 +174,11 @@ const decrementQuantity = () => {
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Cantidad
             </label>
-            <div class="flex items-center gap-4">
-              <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden w-full sm:w-auto">
                 <button
                   @click="decrementQuantity"
-                  class="px-4 py-3 hover:bg-gray-100 transition-colors"
+                  class="px-3 sm:px-4 py-3 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   :disabled="quantity <= 1"
                 >
                   <Icon icon="mdi:minus" class="text-xl" />
@@ -187,11 +187,11 @@ const decrementQuantity = () => {
                   v-model.number="quantity"
                   type="number"
                   min="1"
-                  class="w-16 text-center border-x border-gray-300 py-3 outline-none"
+                  class="flex-1 sm:w-20 text-center border-x border-gray-300 py-3 outline-none"
                 >
                 <button
                   @click="incrementQuantity"
-                  class="px-4 py-3 hover:bg-gray-100 transition-colors"
+                  class="px-3 sm:px-4 py-3 hover:bg-gray-100 transition-colors"
                 >
                   <Icon icon="mdi:plus" class="text-xl" />
                 </button>
@@ -204,6 +204,7 @@ const decrementQuantity = () => {
                 full-width
                 :disabled="!product.inStock"
                 @click="addToCart"
+                class="flex-1"
               >
                 {{ product.inStock ? 'Añadir al Carrito' : 'Agotado' }}
               </BaseButton>

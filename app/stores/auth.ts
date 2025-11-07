@@ -25,32 +25,44 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
 
       try {
-        // TODO: Reemplazar con llamada real a la API
-        // Simulación de login
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Simulación de login con usuario de prueba
+        await new Promise(resolve => setTimeout(resolve, 800))
 
-        // Mock user data
-        const mockUser: User = {
-          id: '1',
-          email: credentials.email,
-          firstName: 'Usuario',
-          lastName: 'Demo',
-          createdAt: new Date().toISOString()
+        // Validar credenciales del usuario de prueba
+        if (credentials.email === 'test' && credentials.password === '1234') {
+          // Usuario de prueba válido
+          const mockUser: User = {
+            id: 'test-user-001',
+            email: 'test@washerseeds.com',
+            firstName: 'Usuario',
+            lastName: 'Test',
+            phone: '+34 612 345 678',
+            address: {
+              street: 'Calle Ejemplo 123',
+              city: 'Madrid',
+              postalCode: '28001',
+              country: 'España'
+            },
+            createdAt: '2024-01-15T10:30:00Z'
+          }
+
+          const mockToken = 'test-jwt-token-' + Date.now()
+
+          this.user = mockUser
+          this.token = mockToken
+          this.isAuthenticated = true
+
+          // Persistir en localStorage
+          if (process.client) {
+            localStorage.setItem('auth_token', mockToken)
+            localStorage.setItem('user', JSON.stringify(mockUser))
+          }
+
+          return { success: true, user: mockUser }
+        } else {
+          // Credenciales incorrectas
+          throw new Error('Credenciales incorrectas. Usuario de prueba: test / 1234')
         }
-
-        const mockToken = 'mock-jwt-token-' + Date.now()
-
-        this.user = mockUser
-        this.token = mockToken
-        this.isAuthenticated = true
-
-        // Persistir en localStorage
-        if (process.client) {
-          localStorage.setItem('auth_token', mockToken)
-          localStorage.setItem('user', JSON.stringify(mockUser))
-        }
-
-        return { success: true, user: mockUser }
       } catch (error: any) {
         this.error = error.message || 'Error al iniciar sesión'
         return { success: false, error: this.error }

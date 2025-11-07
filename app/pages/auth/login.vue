@@ -39,23 +39,22 @@ const handleLogin = async () => {
   if (!validate()) return
   
   isLoading.value = true
+  errors.value = {}
   
   try {
-    // Simulación de login (aquí iría la llamada a la API)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Mock login exitoso
-    authStore.login({
-      id: '1',
+    const result = await authStore.login({
       email: formData.value.email,
-      name: 'Usuario',
-      lastName: 'Demo'
+      password: formData.value.password
     })
     
-    // Redirigir a la página anterior o al home
-    router.push('/')
-  } catch (error) {
-    errors.value.general = 'Credenciales incorrectas'
+    if (result.success) {
+      // Redirigir al perfil del usuario
+      router.push('/user/profile')
+    } else {
+      errors.value.general = result.error || 'Error al iniciar sesión'
+    }
+  } catch (error: any) {
+    errors.value.general = error.message || 'Error al iniciar sesión'
   } finally {
     isLoading.value = false
   }

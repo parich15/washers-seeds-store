@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
+import { getOrdersByUserId, getOrderStatusLabel, getOrderStatusColor } from '../../data/mock-orders'
+import type { OrderStatus } from '../../types/common'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -12,86 +14,27 @@ if (!authStore.isAuthenticated) {
   router.push('/auth/login')
 }
 
-// Mock orders data
-const orders = ref([
-  {
-    id: '#12345678',
-    date: '2025-01-15',
-    status: 'delivered',
-    statusText: 'Entregado',
-    total: 89.90,
-    items: 3,
-    products: [
-      {
-        name: 'Northern Lights',
-        quantity: 1,
-        price: 29.90,
-        image: 'https://placehold.co/100x100/36A9E1/FFF?text=Northern+Lights'
-      },
-      {
-        name: 'Grinder Aluminio',
-        quantity: 2,
-        price: 24.90,
-        image: 'https://placehold.co/100x100/3AAA35/FFF?text=Grinder'
-      }
-    ]
-  },
-  {
-    id: '#12345679',
-    date: '2025-01-20',
-    status: 'shipped',
-    statusText: 'Enviado',
-    total: 65.00,
-    items: 2,
-    products: [
-      {
-        name: 'Gorilla Glue Auto',
-        quantity: 1,
-        price: 35.00,
-        image: 'https://placehold.co/100x100/936037/FFF?text=Gorilla+Glue'
-      },
-      {
-        name: 'Papel RAW',
-        quantity: 1,
-        price: 2.50,
-        image: 'https://placehold.co/100x100/36A9E1/FFF?text=Papel+RAW'
-      }
-    ]
-  },
-  {
-    id: '#12345680',
-    date: '2025-01-28',
-    status: 'processing',
-    statusText: 'Procesando',
-    total: 42.00,
-    items: 1,
-    products: [
-      {
-        name: 'CBD Charlotte\'s Angel',
-        quantity: 1,
-        price: 42.00,
-        image: 'https://placehold.co/100x100/3AAA35/FFF?text=CBD+Charlotte'
-      }
-    ]
-  }
-])
+const user = computed(() => authStore.user)
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'delivered':
-      return 'bg-secondary/10 text-secondary'
-    case 'shipped':
-      return 'bg-main/10 text-main'
-    case 'processing':
-      return 'bg-yellow-100 text-yellow-700'
-    case 'cancelled':
-      return 'bg-red-100 text-red-700'
-    default:
-      return 'bg-gray-100 text-gray-700'
+// Obtener pedidos del usuario
+const orders = computed(() => {
+  if (!user.value?.id) return []
+  return getOrdersByUserId(user.value.id)
+})
+
+const getStatusBadgeColor = (status: OrderStatus) => {
+  const color = getOrderStatusColor(status)
+  const colorMap = {
+    'primary': 'bg-main/10 text-main',
+    'secondary': 'bg-secondary/10 text-secondary',
+    'success': 'bg-green-100 text-green-700',
+    'warning': 'bg-yellow-100 text-yellow-700',
+    'danger': 'bg-red-100 text-red-700'
   }
+  return colorMap[color as keyof typeof colorMap] || 'bg-gray-100 text-gray-700'
 }
 
-const getStatusIcon = (status: string) => {
+const getStatusIcon = (status: OrderStatus) => {
   switch (status) {
     case 'delivered':
       return 'mdi:check-circle'
@@ -160,13 +103,6 @@ const handleLogout = () => {
                 <Icon icon="mdi:package-variant" class="text-xl" />
                 <span>Mis Pedidos</span>
               </NuxtLink>
-              <NuxtLink
-                to="/user/addresses"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <Icon icon="mdi:map-marker" class="text-xl" />
-                <span>Direcciones</span>
-              </NuxtLink>
               <button
                 @click="handleLogout"
                 class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
@@ -213,12 +149,12 @@ const handleLogout = () => {
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <div class="flex items-center gap-3 mb-2">
-                      <h3 class="text-lg font-bold">Pedido {{ order.id }}</h3>
+                      <h3 class="text-lg font-bold">{{ order.orderNumber }}</h3>
                       <span
-                        :class="['px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1', getStatusColor(order.status)]"
+                        :class="['px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1', getStatusBadgeColor(order.status)]"
                       >
                         <Icon :icon="getStatusIcon(order.status)" />
-                        {{ order.statusText }}
+                        {{ getOrderStatusLabel(order.status) }}
                       </span>
                     </div>
                     <p class="text-sm text-gray-600">
@@ -239,24 +175,82 @@ const handleLogout = () => {
               <div class="p-6">
                 <div class="space-y-4">
                   <div
-                    v-for="(product, index) in order.products"
+                    v-for="(item, index) in order.items"
                     :key="index"
                     class="flex items-center gap-4"
                   >
                     <img
-                      :src="product.image"
-                      :alt="product.name"
+                      :src="item.image"
+                      :alt="item.productName"
                       class="w-16 h-16 object-cover rounded-lg"
                     >
                     <div class="flex-1">
-                      <h4 class="font-medium">{{ product.name }}</h4>
+                      <h4 class="font-semibold" style="font-family: var(--font-text)">{{ item.productName }}</h4>
                       <p class="text-sm text-gray-600">
-                        Cantidad: {{ product.quantity }}
+                        Cantidad: {{ item.quantity }}
                       </p>
                     </div>
-                    <p class="font-bold">
-                      {{ (product.price * product.quantity).toFixed(2) }}€
+                    <p class="font-bold text-gray-900">
+                      {{ (item.price * item.quantity).toFixed(2) }}€
                     </p>
+                  </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="mt-6 pt-6 border-t border-gray-200 space-y-2">
+                  <div class="flex justify-between text-sm text-gray-600">
+                    <span>Subtotal</span>
+                    <span>{{ order.subtotal.toFixed(2) }}€</span>
+                  </div>
+                  <div class="flex justify-between text-sm text-gray-600">
+                    <span>IVA (21%)</span>
+                    <span>{{ order.tax.toFixed(2) }}€</span>
+                  </div>
+                  <div class="flex justify-between text-sm text-gray-600">
+                    <span>Envío</span>
+                    <span :class="order.shipping === 0 ? 'text-secondary font-semibold' : ''">
+                      {{ order.shipping === 0 ? '¡GRATIS!' : `${order.shipping.toFixed(2) }€` }}
+                    </span>
+                  </div>
+                  <div class="flex justify-between font-bold text-base pt-2 border-t border-gray-200">
+                    <span>Total</span>
+                    <span class="text-gray-900">{{ order.total.toFixed(2) }}€</span>
+                  </div>
+                </div>
+
+                <!-- Shipping Address & Payment -->
+                <div class="mt-6 pt-6 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 class="font-semibold mb-2 flex items-center gap-2">
+                      <Icon icon="mdi:map-marker" class="text-main" />
+                      Dirección de Envío
+                    </h4>
+                    <p class="text-sm text-gray-600">
+                      {{ order.shippingAddress.street }}<br>
+                      {{ order.shippingAddress.postalCode }}, {{ order.shippingAddress.city }}<br>
+                      {{ order.shippingAddress.province }}, {{ order.shippingAddress.country }}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 class="font-semibold mb-2 flex items-center gap-2">
+                      <Icon icon="mdi:credit-card" class="text-main" />
+                      Método de Pago
+                    </h4>
+                    <p class="text-sm text-gray-600">{{ order.paymentMethod }}</p>
+                    <p class="text-sm" :class="order.paymentStatus === 'completed' ? 'text-secondary' : 'text-yellow-600'">
+                      {{ order.paymentStatus === 'completed' ? 'Pagado' : 'Pendiente de pago' }}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Tracking Number -->
+                <div v-if="order.trackingNumber" class="mt-6 p-4 bg-main/5 rounded-lg">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-medium text-gray-700 mb-1">Número de Seguimiento</p>
+                      <p class="font-mono font-bold text-main">{{ order.trackingNumber }}</p>
+                    </div>
+                    <Icon icon="mdi:truck-delivery" class="text-3xl text-main" />
                   </div>
                 </div>
 
@@ -289,13 +283,14 @@ const handleLogout = () => {
                     Factura
                   </BaseButton>
                   <BaseButton
-                    v-if="order.status === 'shipped'"
+                    v-if="order.status === 'shipped' || order.status === 'processing'"
                     variant="primary"
                     size="sm"
-                    icon="mdi:map-marker"
+                    icon="mdi:truck-delivery"
                     class="flex-1"
+                    :disabled="!order.trackingNumber"
                   >
-                    Rastrear
+                    {{ order.trackingNumber ? 'Rastrear Envío' : 'Sin Tracking' }}
                   </BaseButton>
                 </div>
               </div>

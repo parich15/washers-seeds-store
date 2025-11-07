@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useCartStore } from '../../stores/cart'
 import type { Product } from '../../../types'
 
 interface Props {
@@ -8,6 +9,9 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const cartStore = useCartStore()
+
+const addedToCart = ref(false)
 
 const priceDisplay = computed(() => {
   if (props.product.price.oldPrice) {
@@ -25,8 +29,15 @@ const priceDisplay = computed(() => {
 const handleAddToCart = (event: Event) => {
   event.preventDefault()
   event.stopPropagation()
-  // TODO: Implementar lógica de añadir al carrito con Pinia
-  console.log('Añadir al carrito:', props.product.id)
+  
+  // Añadir al carrito
+  cartStore.addProductToCart(props.product, 1)
+  
+  // Mostrar feedback visual
+  addedToCart.value = true
+  setTimeout(() => {
+    addedToCart.value = false
+  }, 2000)
 }
 </script>
 
@@ -56,6 +67,7 @@ const handleAddToCart = (event: Event) => {
       <!-- Quick Add Button -->
       <div class="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <BaseButton
+          v-if="!addedToCart"
           variant="gradient"
           size="sm"
           icon="mdi:cart-plus"
@@ -65,6 +77,13 @@ const handleAddToCart = (event: Event) => {
         >
           Añadir al carrito
         </BaseButton>
+        <div
+          v-else
+          class="bg-secondary text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold"
+        >
+          <Icon icon="mdi:check-circle" class="text-lg" />
+          ¡Añadido!
+        </div>
       </div>
     </div>
 
@@ -75,8 +94,8 @@ const handleAddToCart = (event: Event) => {
         {{ product.brand.name }}
       </p>
 
-      <!-- Name - altura fija para estandarizar -->
-      <h3 class="font-bold text-base mb-2 line-clamp-2 group-hover:text-main transition-colors h-12">
+      <!-- Name - altura fija para estandarizar - usa font-text -->
+      <h3 class="font-semibold text-base mb-2 line-clamp-2 group-hover:text-main transition-colors h-12" style="font-family: var(--font-text)">
         {{ product.name }}
       </h3>
 

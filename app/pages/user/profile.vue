@@ -16,14 +16,14 @@ const user = computed(() => authStore.user)
 
 // Estado del formulario
 const formData = ref({
-  name: user.value?.name || '',
+  firstName: user.value?.firstName || '',
   lastName: user.value?.lastName || '',
   email: user.value?.email || '',
-  phone: '',
-  address: '',
-  city: '',
-  postalCode: '',
-  country: 'España'
+  phone: user.value?.phone || '',
+  street: user.value?.address?.street || '',
+  city: user.value?.address?.city || '',
+  postalCode: user.value?.address?.postalCode || '',
+  country: user.value?.address?.country || 'España'
 })
 
 const isEditing = ref(false)
@@ -39,14 +39,14 @@ const cancelEdit = () => {
   isEditing.value = false
   // Restaurar datos originales
   formData.value = {
-    name: user.value?.name || '',
+    firstName: user.value?.firstName || '',
     lastName: user.value?.lastName || '',
     email: user.value?.email || '',
-    phone: '',
-    address: '',
-    city: '',
-    postalCode: '',
-    country: 'España'
+    phone: user.value?.phone || '',
+    street: user.value?.address?.street || '',
+    city: user.value?.address?.city || '',
+    postalCode: user.value?.address?.postalCode || '',
+    country: user.value?.address?.country || 'España'
   }
   errors.value = {}
 }
@@ -54,7 +54,7 @@ const cancelEdit = () => {
 const validate = () => {
   errors.value = {}
   
-  if (!formData.value.name) errors.value.name = 'El nombre es obligatorio'
+  if (!formData.value.firstName) errors.value.firstName = 'El nombre es obligatorio'
   if (!formData.value.lastName) errors.value.lastName = 'Los apellidos son obligatorios'
   if (!formData.value.email) errors.value.email = 'El email es obligatorio'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.value.email)) {
@@ -70,26 +70,31 @@ const saveProfile = async () => {
   isSaving.value = true
   
   try {
-    // Simulación de guardado (aquí iría la llamada a la API)
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const result = await authStore.updateProfile({
+      firstName: formData.value.firstName,
+      lastName: formData.value.lastName,
+      email: formData.value.email,
+      phone: formData.value.phone,
+      address: {
+        street: formData.value.street,
+        city: formData.value.city,
+        postalCode: formData.value.postalCode,
+        country: formData.value.country,
+        province: formData.value.city // Usar city como province por ahora
+      }
+    })
     
-    // Actualizar usuario en el store
-    if (user.value) {
-      authStore.updateUser({
-        ...user.value,
-        name: formData.value.name,
-        lastName: formData.value.lastName,
-        email: formData.value.email
-      })
+    if (result.success) {
+      isEditing.value = false
+      saveSuccess.value = true
+      setTimeout(() => {
+        saveSuccess.value = false
+      }, 3000)
+    } else {
+      errors.value.general = result.error || 'Error al guardar los cambios'
     }
-    
-    isEditing.value = false
-    saveSuccess.value = true
-    setTimeout(() => {
-      saveSuccess.value = false
-    }, 3000)
-  } catch (error) {
-    errors.value.general = 'Error al guardar los cambios'
+  } catch (error: any) {
+    errors.value.general = error.message || 'Error al guardar los cambios'
   } finally {
     isSaving.value = false
   }
@@ -160,13 +165,6 @@ const handleLogout = () => {
                 <Icon icon="mdi:package-variant" class="text-xl" />
                 <span>Mis Pedidos</span>
               </NuxtLink>
-              <NuxtLink
-                to="/user/addresses"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <Icon icon="mdi:map-marker" class="text-xl" />
-                <span>Direcciones</span>
-              </NuxtLink>
               <button
                 @click="handleLogout"
                 class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
@@ -214,18 +212,14 @@ const handleLogout = () => {
               <!-- Avatar Section -->
               <div class="flex items-center gap-6 pb-6 border-b border-gray-200">
                 <div class="w-24 h-24 rounded-full bg-gradient flex items-center justify-center text-white text-3xl font-bold">
-                  {{ user?.name?.charAt(0) }}{{ user?.lastName?.charAt(0) }}
+                  {{ user?.firstName?.charAt(0) }}{{ user?.lastName?.charAt(0) }}
                 </div>
                 <div>
-                  <h3 class="text-lg font-bold">{{ user?.name }} {{ user?.lastName }}</h3>
+                  <h3 class="text-lg font-bold">{{ user?.firstName }} {{ user?.lastName }}</h3>
                   <p class="text-gray-600">{{ user?.email }}</p>
-                  <button
-                    v-if="isEditing"
-                    type="button"
-                    class="text-sm text-main hover:underline mt-2"
-                  >
-                    Cambiar foto
-                  </button>
+                  <p class="text-sm text-gray-500 mt-1">
+                    Miembro desde {{ new Date(user?.createdAt || '').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) }}
+                  </p>
                 </div>
               </div>
 
@@ -236,9 +230,9 @@ const handleLogout = () => {
                     Nombre *
                   </label>
                   <BaseInput
-                    v-model="formData.name"
+                    v-model="formData.firstName"
                     :disabled="!isEditing"
-                    :error="errors.name"
+                    :error="errors.firstName"
                   />
                 </div>
                 <div>
@@ -288,7 +282,7 @@ const handleLogout = () => {
                       Dirección
                     </label>
                     <BaseInput
-                      v-model="formData.address"
+                      v-model="formData.street"
                       :disabled="!isEditing"
                       placeholder="Calle, número, piso..."
                     />

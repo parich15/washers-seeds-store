@@ -292,7 +292,7 @@ export const mockSeedProducts: SeedProduct[] = [
     flavors: ['Dulce', 'Vainilla', 'Terroso'],
     medical: ['Estrés', 'Insomnio', 'Dolor'],
     createdAt: '2025-01-10T10:00:00Z'
-  }
+  },
 ]
 
 // ==================== PARAPHERNALIA PRODUCTS ====================
@@ -342,7 +342,7 @@ export const mockParaphernaliaProducts: ParaphernaliaProduct[] = [
     name: 'Papel RAW Orgánico King Size',
     slug: 'papel-raw-organico-king-size',
     description: 'Papel de liar 100% orgánico, sin blanquear. Combustión lenta y uniforme. Sin aditivos químicos. Goma natural de acacia. 32 hojas por librito.',
-    shortDescription: 'Papel orgánico premium',
+    shortDescription: 'Papel orgánico premium de gran tamaño',
     type: 'product',
     images: [
       { url: 'https://placehold.co/800x800/3AAA35/FFF?text=Papel+RAW', alt: 'Papel RAW' }

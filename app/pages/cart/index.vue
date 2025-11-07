@@ -112,7 +112,7 @@ const continueShopping = () => {
                   <p v-if="item.product.brand" class="text-sm text-gray-500 mb-1">
                     {{ item.product.brand.name }}
                   </p>
-                  <h3 class="font-bold text-lg mb-2 hover:text-main transition-colors line-clamp-2">
+                  <h3 class="font-semibold text-lg mb-2 hover:text-main transition-colors line-clamp-2" style="font-family: var(--font-text)">
                     {{ item.product.name }}
                   </h3>
                 </NuxtLink>
