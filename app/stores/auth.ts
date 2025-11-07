@@ -5,6 +5,7 @@ export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     user: null,
     token: null,
+    refreshToken: null,
     isAuthenticated: false,
     loading: false,
     error: null
@@ -20,51 +21,47 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    async login(credentials: AuthCredentials) {
+    async login(credentials: AuthCredentials & { rememberMe?: boolean }) {
       this.loading = true
       this.error = null
 
       try {
-        // Simulación de login con usuario de prueba
-        await new Promise(resolve => setTimeout(resolve, 800))
-
-        // Validar credenciales del usuario de prueba
-        if (credentials.email === 'test' && credentials.password === '1234') {
-          // Usuario de prueba válido
-          const mockUser: User = {
-            id: 'test-user-001',
-            email: 'test@washerseeds.com',
-            firstName: 'Usuario',
-            lastName: 'Test',
-            phone: '+34 612 345 678',
-            address: {
-              street: 'Calle Ejemplo 123',
-              city: 'Madrid',
-              postalCode: '28001',
-              country: 'España'
-            },
-            createdAt: '2024-01-15T10:30:00Z'
+        const response = await $fetch<{
+          success: boolean
+          data: {
+            user: User
+            access_token: string
+            refresh_token: string
+            expires: number
           }
+        }>('/api/auth/login', {
+          method: 'POST',
+          body: {
+            email: credentials.email,
+            password: credentials.password,
+            rememberMe: credentials.rememberMe || false
+          }
+        })
 
-          const mockToken = 'test-jwt-token-' + Date.now()
-
-          this.user = mockUser
-          this.token = mockToken
+        if (response.success && response.data) {
+          this.user = response.data.user
+          this.token = response.data.access_token
+          this.refreshToken = response.data.refresh_token
           this.isAuthenticated = true
 
           // Persistir en localStorage
-          if (process.client) {
-            localStorage.setItem('auth_token', mockToken)
-            localStorage.setItem('user', JSON.stringify(mockUser))
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('auth_token', response.data.access_token)
+            localStorage.setItem('refresh_token', response.data.refresh_token)
+            localStorage.setItem('user', JSON.stringify(response.data.user))
           }
 
-          return { success: true, user: mockUser }
-        } else {
-          // Credenciales incorrectas
-          throw new Error('Credenciales incorrectas. Usuario de prueba: test / 1234')
+          return { success: true, user: response.data.user }
         }
+
+        throw new Error('Respuesta inválida del servidor')
       } catch (error: any) {
-        this.error = error.message || 'Error al iniciar sesión'
+        this.error = error.data?.message || error.message || 'Error al iniciar sesión'
         return { success: false, error: this.error }
       } finally {
         this.loading = false
@@ -76,34 +73,46 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
 
       try {
-        // TODO: Reemplazar con llamada real a la API
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: {
+            user: User
+            access_token: string
+            refresh_token: string
+            expires: number
+          }
+        }>('/api/auth/register', {
+          method: 'POST',
+          body: {
+            email: data.email,
+            password: data.password,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            phone: data.phone,
+            acceptTerms: data.acceptTerms
+          }
+        })
 
-        // Mock user data
-        const mockUser: User = {
-          id: Date.now().toString(),
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          phone: data.phone,
-          createdAt: new Date().toISOString()
+        if (response.success && response.data) {
+          this.user = response.data.user
+          this.token = response.data.access_token
+          this.refreshToken = response.data.refresh_token
+          this.isAuthenticated = true
+
+          // Persistir en localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('auth_token', response.data.access_token)
+            localStorage.setItem('refresh_token', response.data.refresh_token)
+            localStorage.setItem('user', JSON.stringify(response.data.user))
+          }
+
+          return { success: true, user: response.data.user }
         }
 
-        const mockToken = 'mock-jwt-token-' + Date.now()
-
-        this.user = mockUser
-        this.token = mockToken
-        this.isAuthenticated = true
-
-        // Persistir en localStorage
-        if (process.client) {
-          localStorage.setItem('auth_token', mockToken)
-          localStorage.setItem('user', JSON.stringify(mockUser))
-        }
-
-        return { success: true, user: mockUser }
+        throw new Error('Respuesta inválida del servidor')
       } catch (error: any) {
-        this.error = error.message || 'Error al registrarse'
+        this.error = error.data?.message || error.message || 'Error al registrarse'
         return { success: false, error: this.error }
       } finally {
         this.loading = false
@@ -113,19 +122,22 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.user = null
       this.token = null
+      this.refreshToken = null
       this.isAuthenticated = false
 
       // Limpiar localStorage
-      if (process.client) {
+      if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_token')
+        localStorage.removeItem('refresh_token')
         localStorage.removeItem('user')
       }
     },
 
-    checkAuth() {
+    async checkAuth() {
       // Restaurar sesión desde localStorage
-      if (process.client) {
+      if (typeof window !== 'undefined') {
         const token = localStorage.getItem('auth_token')
+        const refreshToken = localStorage.getItem('refresh_token')
         const userStr = localStorage.getItem('user')
 
         if (token && userStr) {
@@ -133,12 +145,78 @@ export const useAuthStore = defineStore('auth', {
             const user = JSON.parse(userStr)
             this.user = user
             this.token = token
+            this.refreshToken = refreshToken
             this.isAuthenticated = true
+
+            // Verificar si el token es válido
+            await this.verifyToken()
           } catch (error) {
             console.error('Error al restaurar sesión:', error)
             this.logout()
           }
         }
+      }
+    },
+
+    async verifyToken() {
+      if (!this.token) return
+
+      try {
+        await $fetch('/api/auth/me', {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        })
+      } catch (error) {
+        // Si el token no es válido, intentar refrescarlo
+        if (this.refreshToken) {
+          await this.refreshAccessToken()
+        } else {
+          this.logout()
+        }
+      }
+    },
+
+    async refreshAccessToken() {
+      if (!this.refreshToken) {
+        this.logout()
+        return false
+      }
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: {
+            access_token: string
+            refresh_token: string
+            expires: number
+          }
+        }>('/api/auth/refresh', {
+          method: 'POST',
+          body: {
+            refresh_token: this.refreshToken
+          }
+        })
+
+        if (response.success && response.data) {
+          this.token = response.data.access_token
+          this.refreshToken = response.data.refresh_token
+
+          // Actualizar en localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('auth_token', response.data.access_token)
+            localStorage.setItem('refresh_token', response.data.refresh_token)
+          }
+
+          return true
+        }
+
+        this.logout()
+        return false
+      } catch (error) {
+        console.error('Error al refrescar token:', error)
+        this.logout()
+        return false
       }
     },
 
@@ -149,13 +227,11 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
 
       try {
-        // TODO: Reemplazar con llamada real a la API
-        await new Promise(resolve => setTimeout(resolve, 500))
-
+        // TODO: Implementar actualización de perfil con Directus
         this.user = { ...this.user, ...data }
 
         // Actualizar en localStorage
-        if (process.client) {
+        if (typeof window !== 'undefined') {
           localStorage.setItem('user', JSON.stringify(this.user))
         }
 

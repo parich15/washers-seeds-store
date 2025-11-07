@@ -8,8 +8,8 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const formData = ref({
-  name: '',
-  lastName: '',
+  first_name: '',
+  last_name: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -25,12 +25,12 @@ const showConfirmPassword = ref(false)
 const validate = () => {
   errors.value = {}
   
-  if (!formData.value.name) {
-    errors.value.name = 'El nombre es obligatorio'
+  if (!formData.value.first_name) {
+    errors.value.first_name = 'El nombre es obligatorio'
   }
   
-  if (!formData.value.lastName) {
-    errors.value.lastName = 'Los apellidos son obligatorios'
+  if (!formData.value.last_name) {
+    errors.value.last_name = 'Los apellidos son obligatorios'
   }
   
   if (!formData.value.email) {
@@ -62,23 +62,26 @@ const handleRegister = async () => {
   if (!validate()) return
   
   isLoading.value = true
+  errors.value = {}
   
   try {
-    // Simulación de registro (aquí iría la llamada a la API)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Mock registro exitoso - auto login
-    authStore.login({
-      id: Date.now().toString(),
+    const result = await authStore.register({
       email: formData.value.email,
-      name: formData.value.name,
-      lastName: formData.value.lastName
+      password: formData.value.password,
+      first_name: formData.value.first_name,
+      last_name: formData.value.last_name,
+      phone: undefined,
+      acceptTerms: formData.value.acceptTerms
     })
     
-    // Redirigir al home
-    router.push('/')
-  } catch (error) {
-    errors.value.general = 'Error al crear la cuenta. Inténtalo de nuevo.'
+    if (result.success) {
+      // Redirigir al perfil del usuario después del registro exitoso
+      router.push('/user/profile')
+    } else {
+      errors.value.general = result.error || 'Error al crear la cuenta'
+    }
+  } catch (error: any) {
+    errors.value.general = error.message || 'Error al crear la cuenta. Inténtalo de nuevo.'
   } finally {
     isLoading.value = false
   }
@@ -120,7 +123,7 @@ const toggleConfirmPassword = () => {
                 Nombre *
               </label>
               <BaseInput
-                v-model="formData.name"
+                v-model="formData.first_name"
                 placeholder="Tu nombre"
                 :error="errors.name"
               />
@@ -130,9 +133,9 @@ const toggleConfirmPassword = () => {
                 Apellidos *
               </label>
               <BaseInput
-                v-model="formData.lastName"
+                v-model="formData.last_name"
                 placeholder="Apellidos"
-                :error="errors.lastName"
+                :error="errors.last_name"
               />
             </div>
           </div>

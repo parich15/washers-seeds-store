@@ -4,13 +4,13 @@ import { Icon } from '@iconify/vue'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
 
+// Aplicar middleware de autenticación
+definePageMeta({
+  middleware: 'auth'
+})
+
 const authStore = useAuthStore()
 const router = useRouter()
-
-// Verificar autenticación
-if (!authStore.isAuthenticated) {
-  router.push('/auth/login')
-}
 
 const user = computed(() => authStore.user)
 

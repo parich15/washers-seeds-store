@@ -6,13 +6,13 @@ import { useRouter } from 'vue-router'
 import { getOrdersByUserId, getOrderStatusLabel, getOrderStatusColor } from '../../data/mock-orders'
 import type { OrderStatus } from '../../types/common'
 
+// Aplicar middleware de autenticación
+definePageMeta({
+  middleware: 'auth'
+})
+
 const authStore = useAuthStore()
 const router = useRouter()
-
-// Verificar autenticación
-if (!authStore.isAuthenticated) {
-  router.push('/auth/login')
-}
 
 const user = computed(() => authStore.user)
 
