@@ -75,18 +75,16 @@ const handleSearch = () => {
 
     <!-- Main header -->
     <div class="container-custom">
-      <div class="flex items-center justify-between py-4 gap-2 sm:gap-4">
+      <div v-if="ajustes?.logo_navbar" class="flex items-center justify-between gap-2 sm:gap-4">
         <!-- Logo -->
         <NuxtLink to="/" class="flex-shrink-0 min-w-0">
           <img 
-            v-if="ajustes?.logo_navbar"
+           
             :src="getAssetUrl(ajustes.logo_navbar)" 
             alt="Washer Seeds"
-            class="h-16 md:h-24 w-auto object-contain"
+            class="h-16 md:h-28 w-auto object-contain"
           />
-          <h1 v-else class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gradient whitespace-nowrap">
-            Washer Seeds
-          </h1>
+         
         </NuxtLink>
 
         <!-- Search bar (Desktop) -->
