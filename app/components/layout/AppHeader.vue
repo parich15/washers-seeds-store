@@ -82,7 +82,7 @@ const handleSearch = () => {
            
             :src="getAssetUrl(ajustes.logo_navbar)" 
             alt="Washer Seeds"
-            class="h-16 md:h-28 w-auto object-contain"
+            class="h-16 md:h-24 w-auto object-contain"
           />
          
         </NuxtLink>

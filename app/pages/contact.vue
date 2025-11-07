@@ -39,10 +39,20 @@ const handleSubmit = async () => {
   if (!validate()) return
   
   isSubmitting.value = true
+  errors.value = {}
   
   try {
-    // Simulación de envío (aquí iría la llamada a la API)
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Enviar a la API
+    await $fetch('/api/contacto', {
+      method: 'POST',
+      body: {
+        nombre: formData.value.name,
+        email: formData.value.email,
+        telefono: formData.value.phone,
+        asunto: formData.value.subject,
+        mensaje: formData.value.message
+      }
+    })
     
     submitSuccess.value = true
     
@@ -58,8 +68,8 @@ const handleSubmit = async () => {
     setTimeout(() => {
       submitSuccess.value = false
     }, 5000)
-  } catch (error) {
-    errors.value.general = 'Error al enviar el mensaje. Inténtalo de nuevo.'
+  } catch (error: any) {
+    errors.value.general = error.data?.statusMessage || 'Error al enviar el mensaje. Inténtalo de nuevo.'
   } finally {
     isSubmitting.value = false
   }
@@ -223,11 +233,11 @@ const faqs = [
                     >
                       <option value="">Selecciona un asunto</option>
                       <option value="info">Información General</option>
-                      <option value="order">Consulta sobre Pedido</option>
-                      <option value="product">Consulta sobre Producto</option>
-                      <option value="shipping">Envíos</option>
-                      <option value="return">Devoluciones</option>
-                      <option value="other">Otro</option>
+                      <option value="pedido">Consulta sobre Pedido</option>
+                      <option value="producto">Consulta sobre Producto</option>
+                      <option value="envio">Envíos</option>
+                      <option value="devolucion">Devoluciones</option>
+                      <option value="otro">Otro</option>
                     </select>
                     <p v-if="errors.subject" class="text-red-500 text-sm mt-1">
                       {{ errors.subject }}

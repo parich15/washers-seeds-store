@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 
 const currentYear = new Date().getFullYear()
@@ -17,6 +17,45 @@ const footerMenu = computed(() => getFooterMenu(menus.value || []))
 
 // Computed para redes sociales válidas
 const validSocialLinks = computed(() => getValidSocialLinks(ajustes.value!))
+
+// Newsletter
+const newsletterEmail = ref('')
+const newsletterError = ref('')
+const newsletterSuccess = ref(false)
+const isSubmittingNewsletter = ref(false)
+
+const handleNewsletterSubmit = async () => {
+  newsletterError.value = ''
+  newsletterSuccess.value = false
+  
+  // Validar email
+  if (!newsletterEmail.value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newsletterEmail.value)) {
+    newsletterError.value = 'Por favor ingresa un email válido'
+    return
+  }
+  
+  isSubmittingNewsletter.value = true
+  
+  try {
+    await $fetch('/api/newsletter', {
+      method: 'POST',
+      body: {
+        email: newsletterEmail.value
+      }
+    })
+    
+    newsletterSuccess.value = true
+    newsletterEmail.value = ''
+    
+    setTimeout(() => {
+      newsletterSuccess.value = false
+    }, 5000)
+  } catch (error: any) {
+    newsletterError.value = error.data?.statusMessage || 'Error al suscribirse. Inténtalo de nuevo.'
+  } finally {
+    isSubmittingNewsletter.value = false
+  }
+}
 
 const footerLinksLegal = [
   { name: 'Aviso Legal', to: '/legal' },
@@ -113,14 +152,33 @@ const paymentMethods = [
           <p class="text-sm mb-4">
             Suscríbete para recibir ofertas exclusivas y novedades
           </p>
-          <form class="space-y-2" @submit.prevent>
+          
+          <!-- Success Message -->
+          <div v-if="newsletterSuccess" class="mb-3 p-3 bg-green-500/20 border border-green-500 rounded-lg text-sm text-green-400">
+            ¡Suscripción exitosa!
+          </div>
+          
+          <!-- Error Message -->
+          <div v-if="newsletterError" class="mb-3 p-3 bg-red-500/20 border border-red-500 rounded-lg text-sm text-red-400">
+            {{ newsletterError }}
+          </div>
+          
+          <form class="space-y-2" @submit.prevent="handleNewsletterSubmit">
             <input
+              v-model="newsletterEmail"
               type="email"
               placeholder="Tu email"
-              class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-main focus:ring-2 focus:ring-main/20 outline-none transition-all text-white placeholder-gray-500"
+              :disabled="isSubmittingNewsletter"
+              class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-main focus:ring-2 focus:ring-main/20 outline-none transition-all text-white placeholder-gray-500 disabled:opacity-50"
             >
-            <BaseButton variant="gradient" size="sm" full-width>
-              Suscribirse
+            <BaseButton 
+              variant="gradient" 
+              size="sm" 
+              full-width
+              type="submit"
+              :disabled="isSubmittingNewsletter"
+            >
+              {{ isSubmittingNewsletter ? 'Enviando...' : 'Suscribirse' }}
             </BaseButton>
           </form>
         </div>
