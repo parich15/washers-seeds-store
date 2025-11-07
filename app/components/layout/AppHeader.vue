@@ -15,36 +15,22 @@ const cartItemsCount = computed(() => cartStore.itemsCount)
 const isAuthenticated = computed(() => authStore.isLoggedIn)
 const userFullName = computed(() => authStore.userFullName)
 
+// Obtener ajustes web desde Directus
+const { fetchAjustesWeb, getAssetUrl, formatPhoneHref } = useAjustesWeb()
+const { ajustes, pending } = await fetchAjustesWeb()
+
+// Obtener menús desde Directus
+const { fetchMenus, getNavbarMenu } = useMenus()
+const { menus } = await fetchMenus()
+
+// Computed para obtener el menú del navbar
+const navbarMenu = computed(() => getNavbarMenu(menus.value || []))
+
 // Check auth on mount
 onMounted(() => {
   authStore.checkAuth()
   cartStore.loadCart()
 })
-
-const categories = [
-  {
-    name: 'Semillas',
-    slug: 'semillas',
-    children: [
-      { name: 'Feminizadas', slug: 'feminizadas' },
-      { name: 'Autoflorecientes', slug: 'autoflorecientes' },
-      { name: 'CBD', slug: 'cbd' },
-      { name: 'Regulares', slug: 'regulares' }
-    ]
-  },
-  {
-    name: 'Parafernalia',
-    slug: 'parafernalia',
-    children: [
-      { name: 'Grinders', slug: 'grinders' },
-      { name: 'Papel de Liar', slug: 'papel' },
-      { name: 'Bongs', slug: 'bongs' },
-      { name: 'Pipas', slug: 'pipas' }
-    ]
-  },
-  { name: 'Ofertas', slug: 'ofertas' },
-  { name: 'Novedades', slug: 'novedades' }
-]
 
 const toggleMobileMenu = () => {
   
@@ -62,15 +48,22 @@ const handleSearch = () => {
 <template>
   <header class="sticky top-0 z-40 bg-white shadow-md">
     <!-- Top bar -->
-    <div class="bg-gradient border-b border-gray-200">
+    <div class="bg-gradient border-b border-gray-200 md:py-1">
       <div class="container-custom">
-        <div class="flex items-center justify-between py-2 text-sm text-white">
+        <div class="flex items-center justify-between py-2 md:py-0 text-sm text-white">
           <div class="flex items-center gap-4">
-            <a href="tel:+34962066298" class="flex items-center gap-1 hover:opacity-80 transition-opacity">
+            <a 
+              v-if="ajustes?.telefono_1"
+              :href="formatPhoneHref(ajustes.telefono_1)" 
+              class="flex items-center gap-1 hover:opacity-80 transition-opacity"
+            >
               <Icon icon="mdi:phone" class="text-lg" />
-              <span class="hidden sm:inline">96 206 62 98</span>
+              <span class="hidden sm:inline">{{ ajustes.telefono_1 }}</span>
             </a>
-            <span class="md:inline animate-pulse">Work in progress</span>
+            <span v-else class="flex items-center gap-1 opacity-50">
+              <Icon icon="mdi:phone" class="text-lg" />
+              <span class="hidden sm:inline">Cargando...</span>
+            </span>
           </div>
           <div class="flex items-center gap-2">
             <Icon icon="mdi:shield-check" class="text-lg" />
@@ -85,7 +78,13 @@ const handleSearch = () => {
       <div class="flex items-center justify-between py-4 gap-2 sm:gap-4">
         <!-- Logo -->
         <NuxtLink to="/" class="flex-shrink-0 min-w-0">
-          <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-gradient whitespace-nowrap">
+          <img 
+            v-if="ajustes?.logo_navbar"
+            :src="getAssetUrl(ajustes.logo_navbar)" 
+            alt="Washer Seeds"
+            class="h-16 md:h-24 w-auto object-contain"
+          />
+          <h1 v-else class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gradient whitespace-nowrap">
             Washer Seeds
           </h1>
         </NuxtLink>
@@ -152,30 +151,30 @@ const handleSearch = () => {
     </div>
 
     <!-- Navigation (Desktop) -->
-    <nav class="hidden md:block border-t border-gray-200 bg-gray-50">
+    <nav v-if="navbarMenu?.menu" class="hidden md:block border-t border-gray-200 bg-gray-50">
       <div class="container-custom">
         <ul class="flex items-center justify-center gap-8 py-3">
-          <li v-for="category in categories" :key="category.slug" class="relative group">
+          <li v-for="item in navbarMenu.menu" :key="item.texto" class="relative group">
             <NuxtLink
-              :to="`/categories/${category.slug}`"
+              :to="item.pagina"
               class="nav-link flex items-center gap-1 py-2"
             >
-              {{ category.name }}
-              <Icon v-if="category.children" icon="mdi:chevron-down" class="text-lg transition-transform group-hover:rotate-180" />
+              {{ item.texto }}
+              <Icon v-if="item.hijos && item.hijos.length > 0" icon="mdi:chevron-down" class="text-lg transition-transform group-hover:rotate-180" />
             </NuxtLink>
 
             <!-- Dropdown -->
             <div
-              v-if="category.children"
+              v-if="item.hijos && item.hijos.length > 0"
               class="absolute left-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
             >
               <ul class="py-2">
-                <li v-for="child in category.children" :key="child.slug">
+                <li v-for="child in item.hijos" :key="child.texto">
                   <NuxtLink
-                    :to="`/categories/${category.slug}/${child.slug}`"
+                    :to="child.pagina"
                     class="block px-4 py-2 hover:bg-gray-100 transition-colors"
                   >
-                    {{ child.name }}
+                    {{ child.texto }}
                   </NuxtLink>
                 </li>
               </ul>
@@ -215,24 +214,24 @@ const handleSearch = () => {
           </form>
 
           <!-- Mobile navigation -->
-          <nav>
+          <nav v-if="navbarMenu?.menu">
             <ul class="space-y-2">
-              <li v-for="category in categories" :key="category.slug">
+              <li v-for="item in navbarMenu.menu" :key="item.texto">
                 <NuxtLink
-                  :to="`/categories/${category.slug}`"
+                  :to="item.pagina"
                   class="block py-3 px-4 rounded-lg hover:bg-gray-100 font-medium transition-colors"
                   @click="mobileMenuOpen = false"
                 >
-                  {{ category.name }}
+                  {{ item.texto }}
                 </NuxtLink>
-                <ul v-if="category.children" class="ml-4 mt-2 space-y-1">
-                  <li v-for="child in category.children" :key="child.slug">
+                <ul v-if="item.hijos && item.hijos.length > 0" class="ml-4 mt-2 space-y-1">
+                  <li v-for="child in item.hijos" :key="child.texto">
                     <NuxtLink
-                      :to="`/categories/${category.slug}/${child.slug}`"
+                      :to="child.pagina"
                       class="block py-2 px-4 rounded-lg hover:bg-gray-100 text-sm transition-colors"
                       @click="mobileMenuOpen = false"
                     >
-                      {{ child.name }}
+                      {{ child.texto }}
                     </NuxtLink>
                   </li>
                 </ul>

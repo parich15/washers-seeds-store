@@ -1,33 +1,28 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 
 const currentYear = new Date().getFullYear()
 
-const footerLinks = {
-  company: [
-    { name: 'Sobre Nosotros', to: '/about' },
-    { name: 'Contacto', to: '/contact' },
-    { name: 'Blog', to: '/blog' }
-  ],
-  legal: [
-    { name: 'Aviso Legal', to: '/legal' },
-    { name: 'Política de Privacidad', to: '/privacy' },
-    { name: 'Política de Cookies', to: '/cookies' },
-    { name: 'Términos y Condiciones', to: '/terms' }
-  ],
-  help: [
-    { name: 'Preguntas Frecuentes', to: '/faq' },
-    { name: 'Envíos y Devoluciones', to: '/shipping' },
-    { name: 'Métodos de Pago', to: '/payment' },
-    { name: 'Garantía', to: '/warranty' }
-  ]
-}
+// Obtener ajustes web desde Directus
+const { fetchAjustesWeb, getAssetUrl, formatPhoneHref, formatEmailHref, getValidSocialLinks } = useAjustesWeb()
+const { ajustes, pending } = await fetchAjustesWeb()
 
-const socialLinks = [
-  { icon: 'mdi:facebook', url: '#', name: 'Facebook' },
-  { icon: 'mdi:instagram', url: '#', name: 'Instagram' },
-  { icon: 'mdi:twitter', url: '#', name: 'Twitter' },
-  { icon: 'mdi:youtube', url: '#', name: 'YouTube' }
+// Obtener menús desde Directus
+const { fetchMenus, getFooterMenu } = useMenus()
+const { menus } = await fetchMenus()
+
+// Computed para obtener el menú del footer
+const footerMenu = computed(() => getFooterMenu(menus.value || []))
+
+// Computed para redes sociales válidas
+const validSocialLinks = computed(() => getValidSocialLinks(ajustes.value!))
+
+const footerLinksLegal = [
+  { name: 'Aviso Legal', to: '/legal' },
+  { name: 'Política de Privacidad', to: '/privacy' },
+  { name: 'Política de Cookies', to: '/cookies' },
+  { name: 'Términos y Condiciones', to: '/terms' }
 ]
 
 const paymentMethods = [
@@ -44,58 +39,67 @@ const paymentMethods = [
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         <!-- About section -->
         <div>
-          <h3 class="text-xl font-bold text-gradient mb-4">
-            Washer Seeds
-          </h3>
+          <div class="mb-4">
+            <img 
+              v-if="ajustes?.logo_footer"
+              :src="getAssetUrl(ajustes.logo_footer)" 
+              alt="Washer Seeds"
+              class="h-12 w-auto object-contain"
+            />
+            <h3 v-else class="text-xl font-bold text-gradient">
+              Washer Seeds
+            </h3>
+          </div>
           <p class="text-sm mb-4">
             Tu tienda de confianza para semillas de calidad y productos cannábicos. 
             Más de 10 años de experiencia en el sector.
           </p>
-          <div class="flex items-center gap-2 mb-2">
+          
+          <!-- Teléfonos -->
+          <div v-if="ajustes?.telefono_1" class="flex items-center gap-2 mb-2">
             <Icon icon="mdi:phone" class="text-xl text-main" />
-            <a href="tel:+34962066298" class="hover:text-white transition-colors">
-              96 206 62 98
+            <a :href="formatPhoneHref(ajustes.telefono_1)" class="hover:text-white transition-colors">
+              {{ ajustes.telefono_1 }}
             </a>
           </div>
-          <div class="flex items-center gap-2">
+          <div v-if="ajustes?.telefono_2" class="flex items-center gap-2 mb-2">
+            <Icon icon="mdi:phone" class="text-xl text-main" />
+            <a :href="formatPhoneHref(ajustes.telefono_2)" class="hover:text-white transition-colors">
+              {{ ajustes.telefono_2 }}
+            </a>
+          </div>
+          
+          <!-- Email -->
+          <div v-if="ajustes?.email" class="flex items-center gap-2 mb-2">
             <Icon icon="mdi:email" class="text-xl text-main" />
-            <a href="mailto:info@washerseeds.com" class="hover:text-white transition-colors">
-              info@washerseeds.com
+            <a :href="formatEmailHref(ajustes.email)" class="hover:text-white transition-colors">
+              {{ ajustes.email }}
             </a>
+          </div>
+          
+          <!-- Dirección -->
+          <div v-if="ajustes?.direccion_1" class="flex items-start gap-2 mt-4">
+            <Icon icon="mdi:map-marker" class="text-xl text-main mt-0.5 flex-shrink-0" />
+            <div class="text-sm">
+              <p>{{ ajustes.direccion_1 }}</p>
+              <p v-if="ajustes.direccion_2">{{ ajustes.direccion_2 }}</p>
+            </div>
           </div>
         </div>
 
-        <!-- Company links -->
-        <div>
+        <!-- Dynamic Footer Menu Sections -->
+        <div v-for="section in footerMenu?.menu" :key="section.texto">
           <h4 class="text-lg font-bold text-white mb-4">
-            Empresa
+            {{ section.texto }}
           </h4>
-          <ul class="space-y-2">
-            <li v-for="link in footerLinks.company" :key="link.to">
+          <ul v-if="section.hijos && section.hijos.length > 0" class="space-y-2">
+            <li v-for="link in section.hijos" :key="link.texto">
               <NuxtLink
-                :to="link.to"
+                :to="link.pagina"
                 class="text-sm hover:text-white transition-colors flex items-center gap-1"
               >
                 <Icon icon="mdi:chevron-right" class="text-xs" />
-                {{ link.name }}
-              </NuxtLink>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Help links -->
-        <div>
-          <h4 class="text-lg font-bold text-white mb-4">
-            Ayuda
-          </h4>
-          <ul class="space-y-2">
-            <li v-for="link in footerLinks.help" :key="link.to">
-              <NuxtLink
-                :to="link.to"
-                class="text-sm hover:text-white transition-colors flex items-center gap-1"
-              >
-                <Icon icon="mdi:chevron-right" class="text-xs" />
-                {{ link.name }}
+                {{ link.texto }}
               </NuxtLink>
             </li>
           </ul>
@@ -128,13 +132,13 @@ const paymentMethods = [
       <!-- Social links & payments -->
       <div class="flex flex-col md:flex-row items-center justify-between gap-6">
         <!-- Social media -->
-        <div>
+        <div v-if="validSocialLinks.length > 0">
           <p class="text-sm mb-3 text-center md:text-left">
             Síguenos en redes sociales
           </p>
           <div class="flex items-center justify-center md:justify-start gap-3">
             <a
-              v-for="social in socialLinks"
+              v-for="social in validSocialLinks"
               :key="social.name"
               :href="social.url"
               :title="social.name"
@@ -178,7 +182,7 @@ const paymentMethods = [
           <!-- Legal links -->
           <div class="flex flex-wrap items-center justify-center gap-4">
             <NuxtLink
-              v-for="link in footerLinks.legal"
+              v-for="link in footerLinksLegal"
               :key="link.to"
               :to="link.to"
               class="text-xs text-gray-500 hover:text-white transition-colors"

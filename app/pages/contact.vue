@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
+
+// Obtener ajustes web desde Directus
+const { fetchAjustesWeb, formatPhoneHref, formatEmailHref, getValidSocialLinks } = useAjustesWeb()
+const { ajustes, pending } = await fetchAjustesWeb()
+
+// Computed para redes sociales válidas
+const validSocialLinks = computed(() => getValidSocialLinks(ajustes.value!))
 
 const formData = ref({
   name: '',
@@ -58,32 +65,54 @@ const handleSubmit = async () => {
   }
 }
 
-const contactInfo = [
-  {
-    icon: 'mdi:map-marker',
-    title: 'Dirección',
-    value: 'Calle Example, 123',
-    subvalue: '28001 Madrid, España'
-  },
-  {
-    icon: 'mdi:phone',
-    title: 'Teléfono',
-    value: '96 206 62 98',
-    subvalue: 'L-V: 9:00 - 19:00h'
-  },
-  {
-    icon: 'mdi:email',
-    title: 'Email',
-    value: 'info@washerseeds.com',
-    subvalue: 'Respuesta en 24h'
-  },
-  {
+// Computed para información de contacto dinámica
+const contactInfo = computed(() => {
+  const info = []
+  
+  // Dirección
+  if (ajustes.value?.direccion_1) {
+    info.push({
+      icon: 'mdi:map-marker',
+      title: 'Dirección',
+      value: ajustes.value.direccion_1,
+      subvalue: ajustes.value.direccion_2 || '',
+      href: null
+    })
+  }
+  
+  // Teléfono 1
+  if (ajustes.value?.telefono_1) {
+    info.push({
+      icon: 'mdi:phone',
+      title: 'Teléfono',
+      value: ajustes.value.telefono_1,
+      subvalue: ajustes.value.telefono_2 || 'L-V: 9:00 - 19:00h',
+      href: formatPhoneHref(ajustes.value.telefono_1)
+    })
+  }
+  
+  // Email
+  if (ajustes.value?.email) {
+    info.push({
+      icon: 'mdi:email',
+      title: 'Email',
+      value: ajustes.value.email,
+      subvalue: 'Respuesta en 24h',
+      href: formatEmailHref(ajustes.value.email)
+    })
+  }
+  
+  // Horario (estático por ahora)
+  info.push({
     icon: 'mdi:clock',
     title: 'Horario',
     value: 'Lun - Vie: 9:00 - 19:00',
-    subvalue: 'Sáb: 10:00 - 14:00'
-  }
-]
+    subvalue: 'Sáb: 10:00 - 14:00',
+    href: null
+  })
+  
+  return info
+})
 
 const faqs = [
   {
@@ -267,32 +296,19 @@ const faqs = [
             </div>
 
             <!-- Social Media -->
-            <div class="bg-white rounded-xl shadow-md p-6">
+            <div v-if="validSocialLinks.length > 0" class="bg-white rounded-xl shadow-md p-6">
               <h3 class="font-bold mb-4">Síguenos</h3>
-              <div class="flex gap-3">
+              <div class="flex gap-3 flex-wrap">
                 <a
-                  href="#"
+                  v-for="social in validSocialLinks"
+                  :key="social.name"
+                  :href="social.url"
+                  :title="social.name"
                   class="w-10 h-10 bg-gray-100 hover:bg-gradient rounded-lg flex items-center justify-center transition-all hover:text-white"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  <Icon icon="mdi:facebook" class="text-xl" />
-                </a>
-                <a
-                  href="#"
-                  class="w-10 h-10 bg-gray-100 hover:bg-gradient rounded-lg flex items-center justify-center transition-all hover:text-white"
-                >
-                  <Icon icon="mdi:instagram" class="text-xl" />
-                </a>
-                <a
-                  href="#"
-                  class="w-10 h-10 bg-gray-100 hover:bg-gradient rounded-lg flex items-center justify-center transition-all hover:text-white"
-                >
-                  <Icon icon="mdi:twitter" class="text-xl" />
-                </a>
-                <a
-                  href="#"
-                  class="w-10 h-10 bg-gray-100 hover:bg-gradient rounded-lg flex items-center justify-center transition-all hover:text-white"
-                >
-                  <Icon icon="mdi:whatsapp" class="text-xl" />
+                  <Icon :icon="social.icon" class="text-xl" />
                 </a>
               </div>
             </div>

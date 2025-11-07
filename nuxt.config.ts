@@ -33,6 +33,10 @@ export default defineNuxtConfig({
     prerender: {
       failOnError: false
     }
+  },
+
+  directus: {
+    url: 'http://161.35.46.209:8055'
   }
 
 })
