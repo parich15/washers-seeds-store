@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { getPrecioItem } from '~~/types/product'
 import type { 
   CollectionType,
+  CollectionItem,
   Semilla, 
   Ropa,
   Cantidad,
-  ProductoBase
+  ProductoBase,
+  RelacionProducto
 } from '~~/types'
+
+// Asegurar que cada producto se trate como una página única
+definePageMeta({
+  key: route => route.fullPath
+})
 
 const route = useRoute()
 
@@ -19,7 +26,40 @@ const slug = computed(() => route.params.slug as string)
 
 // Obtener item usando composable genérico
 const { fetchItemBySlug, getImageUrl, getGalleryUrls } = useProducts()
-const { item, pending, error } = await fetchItemBySlug(collection.value, slug.value)
+
+// Estado reactivo para el item
+const item = ref<CollectionItem | null>(null)
+const pending = ref<boolean>(true)
+const error = ref<any>(null)
+
+// Función para cargar el item
+const loadItem = async () => {
+  if (!collection.value || !slug.value) return
+  
+  pending.value = true
+  error.value = null
+  
+  try {
+    const result = await fetchItemBySlug(collection.value, slug.value)
+    item.value = result.item.value
+    error.value = result.error.value
+  } catch (e) {
+    error.value = e
+    item.value = null
+  } finally {
+    pending.value = false
+  }
+}
+
+// Cargar item inicial en onMounted
+onMounted(() => {
+  loadItem()
+})
+
+// Watch para recargar cuando cambien los parámetros de la ruta
+watch([collection, slug], async () => {
+  await loadItem()
+}, { immediate: false })
 
 // Estado de galería
 const selectedImageIndex = ref(0)
@@ -31,23 +71,29 @@ const selectedTalla = ref<string>('') // Para ropa
 const selectedColor = ref<string>('') // Para ropa
 const addedToCart = ref(false)
 
-// Inicializar selecciones por defecto
-if (item.value) {
-  if (collection.value === 'semillas') {
-    const semilla = item.value as Semilla
-    if (semilla.cantidades && semilla.cantidades.length > 0) {
-      selectedPack.value = semilla.cantidades[0]
-    }
-  } else if (collection.value === 'ropa') {
-    const ropa = item.value as Ropa
-    if (ropa.tallas && ropa.tallas.length > 0) {
-      selectedTalla.value = ropa.tallas[0].talla
-    }
-    if (ropa.colores && ropa.colores.length > 0) {
-      selectedColor.value = ropa.colores[0].color
+// Watch para reinicializar selecciones cuando cambia el item
+watch(item, (newItem) => {
+  if (newItem) {
+    // Reset selections
+    selectedImageIndex.value = 0
+    quantity.value = 1
+    
+    if (collection.value === 'semillas') {
+      const semilla = newItem as Semilla
+      if (semilla.cantidades && semilla.cantidades.length > 0 && semilla.cantidades[0]) {
+        selectedPack.value = semilla.cantidades[0]
+      }
+    } else if (collection.value === 'ropa') {
+      const ropa = newItem as Ropa
+      if (ropa.tallas && ropa.tallas.length > 0 && ropa.tallas[0]) {
+        selectedTalla.value = ropa.tallas[0].talla
+      }
+      if (ropa.colores && ropa.colores.length > 0 && ropa.colores[0]) {
+        selectedColor.value = ropa.colores[0].color
+      }
     }
   }
-}
+}, { immediate: true })
 
 // Obtener galería de imágenes
 const galleryUrls = computed(() => {
@@ -119,11 +165,12 @@ const priceDisplay = computed(() => {
 // Productos relacionados
 const relacionados = computed(() => {
   if (!item.value?.producto.relacionados) return []
-  return item.value.producto.relacionados.map(r => r.related_productos_id)
+  return item.value.producto.relacionados.map((r: RelacionProducto) => r.related_productos_id)
 })
 
 // Nombre de colección para UI
 const collectionName = computed(() => {
+  if (!collection.value) return ''
   return collection.value.charAt(0).toUpperCase() + collection.value.slice(1)
 })
 
@@ -158,34 +205,35 @@ const addToCart = () => {
 const isSemilla = computed(() => collection.value === 'semillas')
 const isRopa = computed(() => collection.value === 'ropa')
 
-const semilla = computed(() => isSemilla.value ? item.value as Semilla : null)
-const ropa = computed(() => isRopa.value ? item.value as Ropa : null)
+const semilla = computed(() => (isSemilla.value && item.value) ? item.value as Semilla : null)
+const ropa = computed(() => (isRopa.value && item.value) ? item.value as Ropa : null)
 </script>
 
 <template>
-  <!-- Loading State -->
-  <div v-if="pending" class="min-h-screen bg-gray-50 flex items-center justify-center">
-    <Icon icon="mdi:loading" class="text-6xl text-main animate-spin" />
-  </div>
-
-  <!-- Error State -->
-  <div v-else-if="error || !item" class="min-h-screen bg-gray-50 flex items-center justify-center">
-    <div class="text-center">
-      <Icon icon="mdi:alert-circle" class="text-6xl text-red-500 mb-4 mx-auto" />
-      <h1 class="text-2xl font-bold text-gray-900 mb-2">
-        Producto no encontrado
-      </h1>
-      <p class="text-gray-600 mb-6">
-        El producto que buscas no existe o ha sido eliminado
-      </p>
-      <BaseButton variant="outline" @click="$router.push('/')">
-        Volver al Inicio
-      </BaseButton>
+  <div>
+    <!-- Loading State -->
+    <div v-if="pending" class="min-h-screen bg-gray-50 flex items-center justify-center">
+      <Icon icon="mdi:loading" class="text-6xl text-main animate-spin" />
     </div>
-  </div>
 
-  <!-- Product Details -->
-  <div v-else class="min-h-screen bg-gray-50">
+    <!-- Error State -->
+    <div v-else-if="error || !item" class="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div class="text-center">
+        <Icon icon="mdi:alert-circle" class="text-6xl text-red-500 mb-4 mx-auto" />
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+          Producto no encontrado
+        </h1>
+        <p class="text-gray-600 mb-6">
+          El producto que buscas no existe o ha sido eliminado
+        </p>
+        <BaseButton variant="outline" @click="$router.push('/')">
+          Volver al Inicio
+        </BaseButton>
+      </div>
+    </div>
+
+    <!-- Product Details -->
+    <div v-else class="min-h-screen bg-gray-50">
     <!-- Breadcrumb -->
     <div class="bg-white border-b border-gray-200">
       <div class="container-custom py-4">
@@ -598,6 +646,7 @@ const ropa = computed(() => isRopa.value ? item.value as Ropa : null)
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>

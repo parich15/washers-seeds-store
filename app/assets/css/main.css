@@ -137,6 +137,11 @@
     animation: scaleIn var(--transition-base) ease-out;
   }
   
+  .animate-gradient-flow {
+    animation: gradientFlow 3s ease infinite;
+    background-size: 200% 200%;
+  }
+  
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -165,6 +170,53 @@
     to {
       transform: scale(1);
       opacity: 1;
+    }
+  }
+  
+  @keyframes gradientFlow {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  
+  /* Page transition enhancement */
+  .page-transition-wrapper {
+    position: relative;
+    min-height: 100vh;
+  }
+  
+  .page-transition-wrapper::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-main), var(--color-secondary), var(--color-main));
+    background-size: 200% 100%;
+    transform-origin: left;
+    z-index: 9999;
+    opacity: 0;
+    animation: pageLoadBar 0.4s ease-out;
+  }
+  
+  @keyframes pageLoadBar {
+    0% {
+      transform: scaleX(0);
+      opacity: 1;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      transform: scaleX(1);
+      opacity: 0;
     }
   }
 }
