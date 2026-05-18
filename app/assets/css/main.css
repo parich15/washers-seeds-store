@@ -8,10 +8,12 @@
   --color-main: rgb(54, 169, 225);
   --color-secondary: rgb(58, 170, 53);
   --color-extra: rgb(147, 96, 55);
-  --color-background: #ffffff;
-  --color-text: #0a0a0a;
-  --color-text-secondary: #6b7280;
-  --color-border: #e5e7eb;
+  --color-background: #fafbf7;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1f6f0;
+  --color-text: #111513;
+  --color-text-secondary: #647067;
+  --color-border: #dde6dc;
   
   /* FONTS */
   --font-main: 'Walking in the street', sans-serif;
@@ -29,9 +31,9 @@
   /* BORDER RADIUS */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.5rem;
   --radius-full: 9999px;
   
   /* SHADOWS */
@@ -49,13 +51,13 @@
 /* ==================== BASE STYLES ==================== */
 @layer base {
   body {
-    @apply bg-white text-[#0a0a0a] antialiased;
+    @apply bg-[#fafbf7] text-[#111513] antialiased;
     font-family: var(--font-text);
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-main);
-    @apply font-bold;
+    font-family: var(--font-text);
+    @apply font-extrabold;
   }
   
   /* Scrollbar personalizado */
@@ -122,6 +124,11 @@
   /* Container personalizado */
   .container-custom {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .font-footer-display {
+    font-family: var(--font-main);
+    font-weight: 400;
   }
   
   /* Animaciones */
@@ -225,7 +232,7 @@
 @layer components {
   /* Botones */
   .btn {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
     font-family: var(--font-text);
     min-width: 120px;
   }
@@ -239,8 +246,8 @@
   }
   
   .btn-gradient {
-    background-image: linear-gradient(120deg, var(--color-main), var(--color-secondary));
-    @apply text-white hover:opacity-90 active:scale-95 shadow-md hover:shadow-lg;
+    background: var(--color-text);
+    @apply text-white hover:opacity-90 active:scale-95 shadow-sm hover:shadow-md;
   }
   
   .btn-outline {
@@ -271,7 +278,7 @@
   
   /* Cards */
   .card {
-    @apply bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden;
+    @apply bg-white rounded-lg border border-[#dde6dc] shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden;
   }
   
   .card-bordered {
@@ -329,7 +336,7 @@
   
   /* Category Card */
   .category-card {
-    @apply relative overflow-hidden rounded-xl cursor-pointer;
+    @apply relative overflow-hidden rounded-lg cursor-pointer;
     min-height: 200px;
   }
   
@@ -367,7 +374,7 @@
   
   .filter-title {
     @apply font-semibold text-lg mb-3;
-    font-family: var(--font-main);
+    font-family: var(--font-text);
   }
   
   /* Navigation */

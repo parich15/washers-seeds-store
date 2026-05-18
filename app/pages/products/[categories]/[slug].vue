@@ -1,46 +1,52 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { getPrecioItem } from '~~/types/product'
 import { useCartStore } from '~/stores/cart'
-import type { 
-  CollectionType,
-  CollectionItem,
-  Semilla, 
-  Ropa,
+import type {
   Cantidad,
-  RelacionProducto
+  CollectionItem,
+  CollectionType,
+  Ropa,
+  Semilla
 } from '~~/types'
 
-// Asegurar que cada producto se trate como una página única
 definePageMeta({
   key: route => route.fullPath
 })
 
 const route = useRoute()
 const cartStore = useCartStore()
-const { fadeIn, fadeOut } = useMotion()
+const config = useRuntimeConfig()
+const { animate, fadeIn, fadeOut } = useMotion()
+const { fetchItemBySlug } = useProducts()
 
-// Detectar colección y slug desde route params
 const collection = computed(() => route.params.categories as CollectionType)
 const slug = computed(() => route.params.slug as string)
 
-// Obtener item usando composable genérico
-const { fetchItemBySlug, getImageUrl, getGalleryUrls } = useProducts()
-
-// Estado reactivo para el item
 const item = ref<CollectionItem | null>(null)
-const pending = ref<boolean>(true)
+const pending = ref(true)
 const error = ref<any>(null)
+const selectedImageIndex = ref(0)
+const quantity = ref(1)
+const selectedPack = ref<Cantidad | null>(null)
+const selectedTalla = ref('')
+const selectedColor = ref('')
+const addedToCart = ref(false)
+const productImageRef = ref<HTMLElement | null>(null)
 
-// Función para cargar el item
+const directusAssetUrl = (uuid: string | null | undefined): string => {
+  if (!uuid) return ''
+  return `${config.public.directus.url}/assets/${uuid}`
+}
+
 const loadItem = async () => {
   if (!collection.value || !slug.value) return
-  
+
   pending.value = true
   error.value = null
-  
+
   try {
     const result = await fetchItemBySlug(collection.value, slug.value)
     item.value = result.item.value || null
@@ -53,83 +59,74 @@ const loadItem = async () => {
   }
 }
 
-// Cargar item inicial en onMounted
 onMounted(() => {
   loadItem()
 })
 
-// Watch para recargar cuando cambien los parámetros de la ruta
 watch([collection, slug], async () => {
   await loadItem()
 }, { immediate: false })
 
-// Estado de galería
-const selectedImageIndex = ref(0)
+watch(item, async newItem => {
+  if (!newItem) return
 
-// Estado de selección (para añadir al carrito)
-const quantity = ref(1)
-const selectedPack = ref<Cantidad | null>(null) // Para semillas
-const selectedTalla = ref<string>('') // Para ropa
-const selectedColor = ref<string>('') // Para ropa
-const addedToCart = ref(false)
+  selectedImageIndex.value = 0
+  quantity.value = 1
 
-// Watch para reinicializar selecciones cuando cambia el item
-watch(item, (newItem) => {
-  if (newItem) {
-    // Reset selections
-    selectedImageIndex.value = 0
-    quantity.value = 1
-    
-    if (collection.value === 'semillas') {
-      const semilla = newItem as Semilla
-      if (semilla.cantidades && semilla.cantidades.length > 0 && semilla.cantidades[0]) {
-        selectedPack.value = semilla.cantidades[0]
-      }
-    } else if (collection.value === 'ropa') {
-      const ropa = newItem as Ropa
-      if (ropa.tallas && ropa.tallas.length > 0 && ropa.tallas[0]) {
-        selectedTalla.value = ropa.tallas[0].talla
-      }
-      if (ropa.colores && ropa.colores.length > 0 && ropa.colores[0]) {
-        selectedColor.value = ropa.colores[0].color
-      }
-    }
+  if (collection.value === 'semillas') {
+    const semilla = newItem as Semilla
+    selectedPack.value = semilla.cantidades?.[0] || null
   }
+
+  if (collection.value === 'ropa') {
+    const ropa = newItem as Ropa
+    selectedTalla.value = ropa.tallas?.[0]?.talla || ''
+    selectedColor.value = ropa.colores?.[0]?.color || ''
+  }
+
+  await nextTick()
+  animate('.product-reveal', {
+    opacity: [0, 1],
+    y: [18, 0],
+    duration: 440,
+    delay: (_el: unknown, index: number) => index * 55,
+    ease: 'outQuad'
+  })
 }, { immediate: true })
 
-// Obtener galería de imágenes
-const galleryUrls = computed(() => {
-  if (!item.value?.producto.galeria) return []
-  return getGalleryUrls(item.value.producto.galeria)
+const isSemilla = computed(() => collection.value === 'semillas')
+const isRopa = computed(() => collection.value === 'ropa')
+const semilla = computed(() => (isSemilla.value && item.value) ? item.value as Semilla : null)
+const ropa = computed(() => (isRopa.value && item.value) ? item.value as Ropa : null)
+
+const collectionName = computed(() => {
+  if (isSemilla.value) return 'Semillas'
+  if (isRopa.value) return 'Ropa'
+  return collection.value ? collection.value.charAt(0).toUpperCase() + collection.value.slice(1) : ''
 })
 
-// Todas las imágenes (principal + galería)
+const galleryUrls = computed(() => {
+  if (!item.value?.producto.galeria?.length) return []
+  return item.value.producto.galeria.map(id => directusAssetUrl(id)).filter(Boolean)
+})
+
 const allImages = computed(() => {
   if (!item.value) return []
-  
-  const images = []
-  
-  // Imagen principal
-  if (item.value.producto.imagen_principal) {
-    images.push(getImageUrl(item.value.producto.imagen_principal))
-  }
-  
-  // Galería
-  images.push(...galleryUrls.value)
-  
-  return images
+
+  const images = [
+    directusAssetUrl(item.value.producto.imagen_principal),
+    ...galleryUrls.value
+  ].filter(Boolean)
+
+  return Array.from(new Set(images))
 })
 
-// Imagen seleccionada actual
-const currentImage = computed(() => {
-  return allImages.value[selectedImageIndex.value] || getImageUrl(null)
-})
+const currentImage = computed(() => allImages.value[selectedImageIndex.value] || '')
 
-// Obtener precio actual según selección
 const precioActual = computed(() => {
   if (!item.value) return { precio: 0, precioDescuento: null, tieneDescuento: false }
-  
-  if (collection.value === 'semillas' && selectedPack.value) {
+
+  if (isSemilla.value && selectedPack.value) {
     return {
       precio: parseFloat(selectedPack.value.precio),
       precioDescuento: selectedPack.value.descuento && selectedPack.value.precio_descuento
@@ -139,60 +136,175 @@ const precioActual = computed(() => {
       cantidad: selectedPack.value.cantidad
     }
   }
-  
+
   return getPrecioItem(item.value)
 })
 
-// Display del precio
 const priceDisplay = computed(() => {
   const info = precioActual.value
-  
+
   if (info.tieneDescuento && info.precioDescuento) {
-    const descuentoPorcentaje = Math.round(
-      ((info.precio - info.precioDescuento) / info.precio) * 100
-    )
-    
+    const discount = Math.round(((info.precio - info.precioDescuento) / info.precio) * 100)
+
     return {
       current: info.precioDescuento.toFixed(2),
       old: info.precio.toFixed(2),
-      discount: descuentoPorcentaje
+      discount
     }
   }
-  
+
   return {
     current: info.precio.toFixed(2)
   }
 })
 
-// Productos relacionados
 const relacionados = computed(() => {
   if (!item.value?.producto.relacionados) return []
-  return item.value.producto.relacionados.map((r: RelacionProducto) => r.related_productos_id)
+
+  return item.value.producto.relacionados
+    .map((relation: any) => {
+      if (typeof relation === 'number') return null
+      return relation.related_productos_id || relation
+    })
+    .filter(Boolean)
 })
 
-// Nombre de colección para UI
-const collectionName = computed(() => {
-  if (!collection.value) return ''
-  return collection.value.charAt(0).toUpperCase() + collection.value.slice(1)
+const sanitizedDescription = computed(() => {
+  const html = item.value?.producto.descripcion || ''
+  return html
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+="[^"]*"/gi, '')
+    .replace(/\son\w+='[^']*'/gi, '')
+    .replace(/javascript:/gi, '')
 })
 
-// Cambiar imagen seleccionada
-const selectImage = (index: number) => {
+const productBadges = computed(() => {
+  if (!item.value) return []
+
+  const badges = []
+
+  if (item.value.producto.nuevo) badges.push({ label: 'Nuevo', variant: 'gradient' as const })
+  if (priceDisplay.value.discount) badges.push({ label: `-${priceDisplay.value.discount}%`, variant: 'danger' as const })
+  if (semilla.value) badges.push({ label: semilla.value.categoria, variant: 'primary' as const })
+  if (ropa.value) badges.push({ label: ropa.value.categoria, variant: 'primary' as const })
+
+  return badges
+})
+
+const seedSpecs = computed(() => {
+  if (!semilla.value) return []
+
+  return [
+    { label: 'THC', value: semilla.value.thc, icon: 'mdi:molecule' },
+    { label: 'CBD', value: semilla.value.cbd, icon: 'mdi:leaf' },
+    { label: 'Dominancia', value: semilla.value.dominancia, icon: 'mdi:sprout-outline' },
+    { label: 'Dificultad', value: semilla.value.dificultad, icon: 'mdi:school-outline' },
+    { label: 'Floracion', value: `${semilla.value.dias_floracion} dias`, icon: 'mdi:clock-outline' },
+    { label: 'Linaje', value: semilla.value.linaje || 'No especificado', icon: 'mdi:dna' }
+  ]
+})
+
+const cultivationSpecs = computed(() => {
+  if (!semilla.value) return []
+
+  return [
+    { label: 'Floracion', value: semilla.value.texto_floracion, icon: 'mdi:calendar-clock' },
+    { label: 'Rendimiento interior', value: semilla.value.rendimiento_interior, icon: 'mdi:home-analytics' },
+    { label: 'Rendimiento exterior', value: semilla.value.rendimiento_exterior, icon: 'mdi:white-balance-sunny' },
+    { label: 'Altura interior', value: semilla.value.altura_interior, icon: 'mdi:arrow-expand-vertical' },
+    { label: 'Altura exterior', value: semilla.value.altura_exterior, icon: 'mdi:arrow-up-bold-outline' }
+  ].filter(spec => spec.value)
+})
+
+const ropaSpecs = computed(() => {
+  if (!ropa.value) return []
+
+  return [
+    { label: 'Tallas disponibles', value: ropa.value.tallas.map(t => t.talla).join(', '), icon: 'mdi:hanger' },
+    { label: 'Colores disponibles', value: ropa.value.colores.map(c => c.color).join(', '), icon: 'mdi:palette-outline' },
+    { label: 'Categoria', value: ropa.value.categoria, icon: 'mdi:tag-outline' }
+  ].filter(spec => spec.value)
+})
+
+const trustItems = [
+  { icon: 'mdi:package-variant-closed', label: 'Embalaje discreto' },
+  { icon: 'mdi:shield-check-outline', label: 'Compra segura' },
+  { icon: 'mdi:message-text-outline', label: 'Asesoria directa' }
+]
+
+const selectImage = async (index: number) => {
   selectedImageIndex.value = index
-}
+  await nextTick()
 
-// Incrementar/decrementar cantidad
-const incrementQuantity = () => {
-  quantity.value++
-}
-
-const decrementQuantity = () => {
-  if (quantity.value > 1) {
-    quantity.value--
+  if (productImageRef.value) {
+    animate(productImageRef.value, {
+      opacity: [0.82, 1],
+      scale: [0.985, 1],
+      duration: 320,
+      ease: 'outQuad'
+    })
   }
 }
 
-const addToCart = () => {
+const setPack = (pack: Cantidad, event: MouseEvent) => {
+  selectedPack.value = pack
+  pulseTarget(event.currentTarget)
+}
+
+const setTalla = (value: string, event: MouseEvent) => {
+  selectedTalla.value = value
+  pulseTarget(event.currentTarget)
+}
+
+const setColor = (value: string, event: MouseEvent) => {
+  selectedColor.value = value
+  pulseTarget(event.currentTarget)
+}
+
+const pulseTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) return
+
+  animate(target, {
+    scale: [0.98, 1],
+    duration: 220,
+    ease: 'outQuad'
+  })
+}
+
+const liftCard = (event: MouseEvent) => {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
+
+  animate(target, {
+    y: -5,
+    duration: 220,
+    ease: 'outQuad'
+  })
+}
+
+const settleCard = (event: MouseEvent) => {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
+
+  animate(target, {
+    y: 0,
+    duration: 260,
+    ease: 'outQuad'
+  })
+}
+
+const incrementQuantity = (event?: MouseEvent) => {
+  quantity.value++
+  if (event) pulseTarget(event.currentTarget)
+}
+
+const decrementQuantity = (event?: MouseEvent) => {
+  if (quantity.value <= 1) return
+  quantity.value--
+  if (event) pulseTarget(event.currentTarget)
+}
+
+const addToCart = async (event?: MouseEvent) => {
   if (!item.value) return
 
   cartStore.addCartLine({
@@ -204,470 +316,420 @@ const addToCart = () => {
       image: currentImage.value,
       price: precioActual.value.precioDescuento || precioActual.value.precio,
       sku: item.value.producto.sku,
-      category: isSemilla.value ? semilla.value?.categoria : ropa.value?.categoria
+      category: semilla.value?.categoria || ropa.value?.categoria
     },
     quantity: quantity.value,
     selectedOptions: isSemilla.value
       ? { pack: selectedPack.value ? String(selectedPack.value.cantidad) : '1' }
       : { talla: selectedTalla.value, color: selectedColor.value }
   })
-  
+
+  if (event?.currentTarget instanceof HTMLElement) {
+    animate(event.currentTarget, {
+      scale: [0.985, 1],
+      duration: 260,
+      ease: 'outQuad'
+    })
+  }
+
   addedToCart.value = true
+  await nextTick()
+
+  animate('.cart-success', {
+    opacity: [0, 1],
+    y: [8, 0],
+    duration: 260,
+    ease: 'outQuad'
+  })
+
   setTimeout(() => {
     addedToCart.value = false
-  }, 2000)
+  }, 2200)
 }
-
-// Type guards
-const isSemilla = computed(() => collection.value === 'semillas')
-const isRopa = computed(() => collection.value === 'ropa')
-
-const semilla = computed(() => (isSemilla.value && item.value) ? item.value as Semilla : null)
-const ropa = computed(() => (isRopa.value && item.value) ? item.value as Ropa : null)
-
-const sanitizedDescription = computed(() => {
-  const html = item.value?.producto.descripcion || ''
-  return html
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+="[^"]*"/gi, '')
-    .replace(/\son\w+='[^']*'/gi, '')
-    .replace(/javascript:/gi, '')
-})
 </script>
 
 <template>
-  <div>
-    <!-- Loading State -->
-    <div v-if="pending" class="min-h-screen bg-gray-50 flex items-center justify-center">
-      <Icon icon="mdi:loading" class="text-6xl text-main animate-spin" />
-    </div>
+  <main class="min-h-screen bg-[#fafbf7]">
+    <section v-if="pending" class="flex min-h-screen items-center justify-center">
+      <div class="flex flex-col items-center gap-4 text-[#647067]">
+        <Icon icon="mdi:loading" class="text-5xl text-main animate-spin" />
+        <p class="text-sm font-bold uppercase tracking-[0.14em]">Cargando producto</p>
+      </div>
+    </section>
 
-    <!-- Error State -->
-    <div v-else-if="error || !item" class="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div class="text-center">
-        <Icon icon="mdi:alert-circle" class="text-6xl text-red-500 mb-4 mx-auto" />
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">
-          Producto no encontrado
-        </h1>
-        <p class="text-gray-600 mb-6">
-          El producto que buscas no existe o ha sido eliminado
-        </p>
-        <BaseButton variant="outline" @click="$router.push('/')">
-          Volver al Inicio
+    <section v-else-if="error || !item" class="flex min-h-screen items-center justify-center px-4">
+      <div class="max-w-md rounded-lg border border-[#dde6dc] bg-white p-8 text-center">
+        <Icon icon="mdi:alert-circle-outline" class="mx-auto mb-4 text-5xl text-red-500" />
+        <h1 class="text-2xl font-extrabold text-[#111513]">Producto no encontrado</h1>
+        <p class="mt-3 text-[#647067]">El producto que buscas no existe o ha sido eliminado.</p>
+        <BaseButton variant="outline" class="mt-6" @click="$router.push('/')">
+          Volver al inicio
         </BaseButton>
       </div>
-    </div>
+    </section>
 
-    <!-- Product Details -->
-    <div v-else class="min-h-screen bg-gray-50">
-    <!-- Breadcrumb -->
-    <div class="bg-white border-b border-gray-200">
-      <div class="container-custom py-4">
-        <nav class="flex items-center gap-2 text-sm flex-wrap">
-          <NuxtLink to="/" class="text-gray-600 hover:text-main transition-colors">
-            Inicio
-          </NuxtLink>
-          <Icon icon="mdi:chevron-right" class="text-gray-400" />
-          <NuxtLink 
-            :to="`/products/${collection}`"
-            class="text-gray-600 hover:text-main transition-colors capitalize"
-          >
-            {{ collectionName }}
-          </NuxtLink>
-          <Icon icon="mdi:chevron-right" class="text-gray-400" />
-          <span class="text-gray-900 font-medium">{{ item.producto.nombre }}</span>
-        </nav>
+    <template v-else>
+      <div class="border-b border-[#dde6dc] bg-white">
+        <div class="container-custom py-4">
+          <nav class="flex flex-wrap items-center gap-2 text-sm">
+            <NuxtLink to="/" class="font-semibold text-[#647067] hover:text-main">
+              Inicio
+            </NuxtLink>
+            <Icon icon="mdi:chevron-right" class="text-[#9aa79d]" />
+            <NuxtLink :to="`/products/${collection}`" class="font-semibold text-[#647067] hover:text-main">
+              {{ collectionName }}
+            </NuxtLink>
+            <Icon icon="mdi:chevron-right" class="text-[#9aa79d]" />
+            <span class="font-bold text-[#111513]">{{ item.producto.nombre }}</span>
+          </nav>
+        </div>
       </div>
-    </div>
 
-    <!-- Product Content -->
-    <div class="container-custom py-8">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        <!-- Galería de Imágenes -->
-        <div>
-          <!-- Imagen Principal -->
-          <div class="bg-white rounded-xl shadow-md overflow-hidden mb-4">
-            <img
-              :src="currentImage"
-              :alt="item.producto.nombre"
-              class="w-full aspect-square object-cover"
-            >
+      <section class="container-custom grid gap-8 py-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(420px,0.78fr)] lg:py-12">
+        <div class="product-reveal opacity-0">
+          <div
+            class="overflow-hidden rounded-lg border border-[#dde6dc] bg-white"
+            @mouseenter="liftCard"
+            @mouseleave="settleCard"
+          >
+            <div class="relative aspect-square bg-[#edf3e8]">
+              <img
+                v-if="currentImage"
+                ref="productImageRef"
+                :src="currentImage"
+                :alt="item.producto.nombre"
+                class="h-full w-full object-cover"
+              >
+              <div v-else class="flex h-full w-full items-center justify-center text-[#936037]">
+                <Icon icon="mdi:image-off-outline" class="text-6xl" />
+              </div>
+
+              <div class="absolute left-4 top-4 flex flex-wrap gap-2">
+                <BaseBadge
+                  v-for="badge in productBadges"
+                  :key="badge.label"
+                  :variant="badge.variant"
+                  size="sm"
+                >
+                  {{ badge.label }}
+                </BaseBadge>
+              </div>
+            </div>
           </div>
 
-          <!-- Thumbnails -->
-          <div v-if="allImages.length > 1" class="grid grid-cols-4 gap-4">
+          <div v-if="allImages.length > 1" class="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6">
             <button
               v-for="(imageUrl, index) in allImages"
-              :key="index"
-              @click="selectImage(index)"
+              :key="imageUrl"
+              type="button"
               :class="[
-                'aspect-square rounded-lg overflow-hidden border-2 transition-all',
-                selectedImageIndex === index 
-                  ? 'border-main shadow-md' 
-                  : 'border-gray-200 hover:border-gray-300'
+                'aspect-square overflow-hidden rounded-lg border bg-white p-1',
+                selectedImageIndex === index
+                  ? 'border-[#111513]'
+                  : 'border-[#dde6dc] hover:border-main'
               ]"
+              @click="selectImage(index)"
             >
               <img
                 :src="imageUrl"
                 :alt="`${item.producto.nombre} - Imagen ${index + 1}`"
-                class="w-full h-full object-cover"
+                class="h-full w-full rounded-[6px] object-cover"
               >
             </button>
           </div>
         </div>
 
-        <!-- Info del Producto -->
-        <div class="bg-white rounded-xl shadow-md p-6 lg:p-8">
-          <!-- Título -->
-          <h1 class="text-3xl md:text-4xl font-semibold mb-4" style="font-family: var(--font-text)">
-            {{ item.producto.nombre }}
-          </h1>
+        <aside class="product-reveal opacity-0">
+          <div class="sticky top-36 rounded-lg border border-[#dde6dc] bg-white p-5 shadow-sm md:p-7">
+            <p class="text-sm font-bold uppercase tracking-[0.14em] text-[#936037]">
+              {{ collectionName }}
+            </p>
+            <h1 class="mt-3 text-3xl font-extrabold leading-tight text-[#111513] md:text-5xl">
+              {{ item.producto.nombre }}
+            </h1>
 
-          <!-- Badges -->
-          <div class="flex flex-wrap gap-2 mb-6">
-            <BaseBadge v-if="item.producto.nuevo" variant="gradient">
-              Nuevo
-            </BaseBadge>
-            <BaseBadge v-if="priceDisplay.discount" variant="danger">
-              -{{ priceDisplay.discount }}% OFF
-            </BaseBadge>
-            <BaseBadge v-if="isSemilla && semilla" variant="primary">
-              {{ semilla.categoria }}
-            </BaseBadge>
-            <BaseBadge v-if="isRopa && ropa" variant="primary">
-              {{ ropa.categoria }}
-            </BaseBadge>
-          </div>
+            <p v-if="item.producto.descripcion_corta" class="mt-4 text-base leading-7 text-[#647067]">
+              {{ item.producto.descripcion_corta }}
+            </p>
 
-          <!-- Precio -->
-          <div class="mb-6">
-            <div class="flex items-baseline gap-3">
-              <span class="text-4xl font-bold text-gray-900">
+            <div class="mt-6 flex items-end gap-3">
+              <span class="text-4xl font-extrabold tracking-normal text-[#111513] md:text-5xl">
                 {{ priceDisplay.current }}€
               </span>
-              <span v-if="priceDisplay.old" class="text-2xl text-gray-400 line-through">
+              <span v-if="priceDisplay.old" class="pb-1 text-xl font-bold text-[#9aa79d] line-through">
                 {{ priceDisplay.old }}€
               </span>
             </div>
-            <p v-if="isSemilla && selectedPack" class="text-sm text-gray-600 mt-1">
+
+            <p v-if="isSemilla && selectedPack" class="mt-2 text-sm font-semibold text-[#647067]">
               Pack de {{ selectedPack.cantidad }} {{ selectedPack.cantidad === 1 ? 'semilla' : 'semillas' }}
             </p>
-          </div>
 
-          <!-- Descripción Corta -->
-          <p class="text-gray-700 mb-6 leading-relaxed">
-            {{ item.producto.descripcion_corta }}
-          </p>
+            <div class="my-6 h-px bg-[#dde6dc]" />
 
-          <div class="divider" />
-
-          <!-- SELECTOR DE PACK (Solo para Semillas) -->
-          <div v-if="isSemilla && semilla && semilla.cantidades.length > 0" class="mb-6">
-            <label class="block text-sm font-medium text-gray-700 mb-3">
-              Selecciona Pack
-            </label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                v-for="pack in semilla.cantidades"
-                :key="pack.cantidad"
-                @click="selectedPack = pack"
-                :class="[
-                  'p-4 rounded-lg border-2 transition-all text-left',
-                  selectedPack?.cantidad === pack.cantidad
-                    ? 'border-main bg-main/5'
-                    : 'border-gray-300 hover:border-gray-400'
-                ]"
-              >
-                <div class="flex items-center justify-between mb-1">
-                  <span class="font-semibold">{{ pack.cantidad }} ud{{ pack.cantidad > 1 ? 's' : '' }}</span>
-                  <BaseBadge v-if="pack.descuento" variant="danger" size="sm">
-                    -{{ Math.round(((parseFloat(pack.precio) - parseFloat(pack.precio_descuento || pack.precio)) / parseFloat(pack.precio)) * 100) }}%
-                  </BaseBadge>
-                </div>
-                <div class="flex items-baseline gap-2">
-                  <span class="text-xl font-bold">
-                    {{ pack.descuento ? parseFloat(pack.precio_descuento || pack.precio).toFixed(2) : parseFloat(pack.precio).toFixed(2) }}€
-                  </span>
-                  <span v-if="pack.descuento" class="text-sm text-gray-400 line-through">
-                    {{ parseFloat(pack.precio).toFixed(2) }}€
-                  </span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <!-- SELECTOR DE TALLA Y COLOR (Solo para Ropa) -->
-          <div v-if="isRopa && ropa">
-            <!-- Tallas -->
-            <div v-if="ropa.tallas.length > 0" class="mb-6">
-              <label class="block text-sm font-medium text-gray-700 mb-3">
-                Talla
-              </label>
-              <div class="flex flex-wrap gap-2">
+            <div v-if="isSemilla && semilla && semilla.cantidades.length > 0" class="space-y-3">
+              <h2 class="text-sm font-bold uppercase tracking-[0.12em] text-[#647067]">Selecciona pack</h2>
+              <div class="grid gap-3 sm:grid-cols-2">
                 <button
-                  v-for="talla in ropa.tallas"
-                  :key="talla.talla"
-                  @click="selectedTalla = talla.talla"
+                  v-for="pack in semilla.cantidades"
+                  :key="pack.cantidad"
+                  type="button"
                   :class="[
-                    'px-4 py-2 rounded-lg border-2 transition-all font-medium',
-                    selectedTalla === talla.talla
-                      ? 'border-main bg-main text-white'
-                      : 'border-gray-300 hover:border-gray-400'
+                    'rounded-lg border p-4 text-left',
+                    selectedPack?.cantidad === pack.cantidad
+                      ? 'border-[#111513] bg-[#111513] text-white'
+                      : 'border-[#dde6dc] bg-[#fafbf7] text-[#111513] hover:border-main'
                   ]"
+                  @click="setPack(pack, $event)"
                 >
-                  {{ talla.talla }}
+                  <span class="block text-sm font-extrabold">{{ pack.cantidad }} ud{{ pack.cantidad > 1 ? 's' : '' }}</span>
+                  <span class="mt-1 flex items-baseline gap-2">
+                    <span class="text-xl font-extrabold">
+                      {{ pack.descuento ? parseFloat(pack.precio_descuento || pack.precio).toFixed(2) : parseFloat(pack.precio).toFixed(2) }}€
+                    </span>
+                    <span v-if="pack.descuento" class="text-xs opacity-70 line-through">
+                      {{ parseFloat(pack.precio).toFixed(2) }}€
+                    </span>
+                  </span>
                 </button>
               </div>
             </div>
 
-            <!-- Colores -->
-            <div v-if="ropa.colores.length > 0" class="mb-6">
-              <label class="block text-sm font-medium text-gray-700 mb-3">
-                Color
+            <div v-if="isRopa && ropa" class="space-y-5">
+              <div v-if="ropa.tallas.length > 0">
+                <h2 class="mb-3 text-sm font-bold uppercase tracking-[0.12em] text-[#647067]">Talla</h2>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="talla in ropa.tallas"
+                    :key="talla.talla"
+                    type="button"
+                    :class="[
+                      'min-h-11 min-w-11 rounded-lg border px-4 font-bold',
+                      selectedTalla === talla.talla
+                        ? 'border-[#111513] bg-[#111513] text-white'
+                        : 'border-[#dde6dc] bg-[#fafbf7] text-[#111513] hover:border-main'
+                    ]"
+                    @click="setTalla(talla.talla, $event)"
+                  >
+                    {{ talla.talla }}
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="ropa.colores.length > 0">
+                <h2 class="mb-3 text-sm font-bold uppercase tracking-[0.12em] text-[#647067]">Color</h2>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="color in ropa.colores"
+                    :key="color.color"
+                    type="button"
+                    :class="[
+                      'min-h-11 rounded-lg border px-4 font-bold',
+                      selectedColor === color.color
+                        ? 'border-[#111513] bg-[#111513] text-white'
+                        : 'border-[#dde6dc] bg-[#fafbf7] text-[#111513] hover:border-main'
+                    ]"
+                    @click="setColor(color.color, $event)"
+                  >
+                    {{ color.color }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="my-6 h-px bg-[#dde6dc]" />
+
+            <div>
+              <label class="mb-3 block text-sm font-bold uppercase tracking-[0.12em] text-[#647067]">
+                Cantidad
               </label>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="color in ropa.colores"
-                  :key="color.color"
-                  @click="selectedColor = color.color"
-                  :class="[
-                    'px-4 py-2 rounded-lg border-2 transition-all',
-                    selectedColor === color.color
-                      ? 'border-main bg-main text-white'
-                      : 'border-gray-300 hover:border-gray-400'
-                  ]"
+              <div class="flex flex-col gap-3 sm:flex-row">
+                <div class="flex min-h-12 overflow-hidden rounded-lg border border-[#dde6dc] bg-[#fafbf7]">
+                  <button
+                    type="button"
+                    class="flex w-12 items-center justify-center disabled:opacity-40"
+                    :disabled="quantity <= 1"
+                    @click="decrementQuantity($event)"
+                  >
+                    <Icon icon="mdi:minus" class="text-xl" />
+                  </button>
+                  <input
+                    v-model.number="quantity"
+                    type="number"
+                    min="1"
+                    class="w-full min-w-16 border-x border-[#dde6dc] bg-white text-center font-bold outline-none sm:w-20"
+                  >
+                  <button
+                    type="button"
+                    class="flex w-12 items-center justify-center"
+                    @click="incrementQuantity($event)"
+                  >
+                    <Icon icon="mdi:plus" class="text-xl" />
+                  </button>
+                </div>
+
+                <BaseButton
+                  variant="gradient"
+                  size="lg"
+                  icon="mdi:cart-plus"
+                  full-width
+                  :disabled="!item.producto.disponible"
+                  class="flex-1"
+                  @click="addToCart"
                 >
-                  {{ color.color }}
-                </button>
+                  {{ item.producto.disponible ? 'Añadir al carrito' : 'Agotado' }}
+                </BaseButton>
               </div>
             </div>
-          </div>
 
-          <!-- Cantidad y Añadir al Carrito -->
-          <div class="mb-6">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Cantidad
-            </label>
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden w-full sm:w-auto">
-                <button
-                  @click="decrementQuantity"
-                  class="px-3 sm:px-4 py-3 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  :disabled="quantity <= 1"
-                >
-                  <Icon icon="mdi:minus" class="text-xl" />
-                </button>
-                <input
-                  v-model.number="quantity"
-                  type="number"
-                  min="1"
-                  class="flex-1 sm:w-20 text-center border-x border-gray-300 py-3 outline-none"
-                >
-                <button
-                  @click="incrementQuantity"
-                  class="px-3 sm:px-4 py-3 hover:bg-gray-100 transition-colors"
-                >
-                  <Icon icon="mdi:plus" class="text-xl" />
-                </button>
-              </div>
-
-              <BaseButton
-                variant="gradient"
-                size="lg"
-                icon="mdi:cart-plus"
-                full-width
-                :disabled="!item.producto.disponible"
-                @click="addToCart"
-                class="flex-1"
-              >
-                {{ item.producto.disponible ? 'Añadir al Carrito' : 'Agotado' }}
-              </BaseButton>
-            </div>
-
-            <!-- Success message -->
-            <Transition
-              :css="false"
-              @enter="fadeIn"
-              @leave="fadeOut"
-            >
-              <div v-if="addedToCart" class="mt-4 p-4 bg-secondary/10 border border-secondary rounded-lg flex items-center gap-2">
-                <Icon icon="mdi:check-circle" class="text-secondary text-xl" />
-                <span class="text-secondary font-medium">¡Producto añadido al carrito!</span>
+            <Transition :css="false" @enter="fadeIn" @leave="fadeOut">
+              <div v-if="addedToCart" class="cart-success mt-4 flex items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/10 p-4 text-sm font-bold text-[#20622f]">
+                <Icon icon="mdi:check-circle-outline" class="text-xl text-secondary" />
+                Producto añadido al carrito.
               </div>
             </Transition>
+
+            <div class="mt-6 grid gap-2">
+              <div class="flex items-center gap-2 text-sm font-bold" :class="item.producto.disponible ? 'text-[#2f8f46]' : 'text-red-600'">
+                <Icon :icon="item.producto.disponible ? 'mdi:check-circle-outline' : 'mdi:alert-circle-outline'" class="text-xl" />
+                {{ item.producto.disponible ? `En stock (${item.producto.stock} disponibles)` : 'Agotado' }}
+              </div>
+              <p class="text-sm text-[#647067]">SKU: {{ item.producto.sku }}</p>
+            </div>
+
+            <div class="mt-6 grid gap-2 border-t border-[#dde6dc] pt-5 sm:grid-cols-3">
+              <div
+                v-for="trust in trustItems"
+                :key="trust.label"
+                class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-[#647067]"
+              >
+                <Icon :icon="trust.icon" class="text-lg text-secondary" />
+                {{ trust.label }}
+              </div>
+            </div>
           </div>
+        </aside>
+      </section>
 
-          <div class="divider" />
-
-          <!-- Stock Status -->
-          <div class="flex items-center gap-2 mb-4">
-            <Icon 
-              :icon="item.producto.disponible ? 'mdi:check-circle' : 'mdi:alert-circle'" 
-              :class="item.producto.disponible ? 'text-secondary' : 'text-red-500'"
-              class="text-xl"
-            />
-            <span :class="item.producto.disponible ? 'text-secondary' : 'text-red-500'" class="font-medium">
-              {{ item.producto.disponible ? 'En Stock' : 'Agotado' }}
-            </span>
-            <span v-if="item.producto.disponible" class="text-gray-500 text-sm">
-              ({{ item.producto.stock }} disponibles)
-            </span>
-          </div>
-
-          <!-- SKU -->
-          <p class="text-sm text-gray-500">
-            SKU: {{ item.producto.sku }}
-          </p>
-        </div>
-      </div>
-
-      <!-- Descripción e Info Específica -->
-      <div class="bg-white rounded-xl shadow-md p-6 lg:p-8 mb-8">
-        <div class="space-y-8">
-          <!-- Descripción -->
-          <div>
-            <h2 class="text-2xl font-bold mb-4">Descripción</h2>
-            <div class="prose max-w-none text-gray-700 leading-relaxed" v-html="sanitizedDescription" />
-          </div>
-
-          <!-- Info específica de SEMILLAS -->
-          <div v-if="isSemilla && semilla">
-            <div class="divider" />
-
-            <!-- Genética -->
-            <div class="mb-8">
-              <h3 class="text-xl font-bold mb-4">Genética</h3>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-gray-50 rounded-lg p-4">
-                  <p class="text-sm text-gray-600 mb-1">THC</p>
-                  <p class="text-lg font-bold text-gray-900">{{ semilla.thc }}</p>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-4">
-                  <p class="text-sm text-gray-600 mb-1">CBD</p>
-                  <p class="text-lg font-bold text-gray-900">{{ semilla.cbd }}</p>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-4">
-                  <p class="text-sm text-gray-600 mb-1">Dominancia</p>
-                  <p class="text-lg font-bold capitalize">{{ semilla.dominancia }}</p>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-4">
-                  <p class="text-sm text-gray-600 mb-1">Linaje</p>
-                  <p class="text-sm font-medium">{{ semilla.linaje }}</p>
+      <section class="container-custom pb-16">
+        <div class="grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
+          <aside class="product-reveal opacity-0">
+            <div class="rounded-lg border border-[#dde6dc] bg-white p-5">
+              <h2 class="text-sm font-bold uppercase tracking-[0.14em] text-[#936037]">Ficha rápida</h2>
+              <div class="mt-5 grid gap-3">
+                <div
+                  v-for="spec in (isSemilla ? seedSpecs : ropaSpecs)"
+                  :key="spec.label"
+                  class="flex items-start gap-3 rounded-lg bg-[#fafbf7] p-3"
+                >
+                  <Icon :icon="spec.icon" class="mt-0.5 text-xl text-main" />
+                  <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.1em] text-[#647067]">{{ spec.label }}</p>
+                    <p class="mt-1 font-extrabold text-[#111513]">{{ spec.value }}</p>
+                  </div>
                 </div>
               </div>
             </div>
+          </aside>
 
-            <!-- Info de Cultivo -->
+          <div class="product-reveal rounded-lg border border-[#dde6dc] bg-white p-5 opacity-0 md:p-8">
             <div>
-              <h3 class="text-xl font-bold mb-4">Información de Cultivo</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="flex items-start gap-3">
-                  <Icon icon="mdi:clock-outline" class="text-2xl text-main mt-1" />
-                  <div>
-                    <p class="font-semibold">Floración</p>
-                    <p class="text-gray-600">{{ semilla.dias_floracion }} días - {{ semilla.texto_floracion }}</p>
+              <p class="text-sm font-bold uppercase tracking-[0.14em] text-main">Detalle</p>
+              <h2 class="mt-3 text-3xl font-extrabold text-[#111513]">Descripción</h2>
+              <div
+                v-if="sanitizedDescription"
+                class="prose mt-5 max-w-none text-[#4c574f] prose-headings:text-[#111513] prose-a:text-main"
+                v-html="sanitizedDescription"
+              />
+              <p v-else class="mt-5 leading-7 text-[#647067]">
+                No hay una descripción ampliada disponible para este producto.
+              </p>
+            </div>
+
+            <div v-if="isSemilla && semilla" class="mt-10 border-t border-[#dde6dc] pt-8">
+              <h3 class="text-2xl font-extrabold text-[#111513]">Cultivo y perfil</h3>
+              <div class="mt-5 grid gap-3 md:grid-cols-2">
+                <div
+                  v-for="spec in cultivationSpecs"
+                  :key="spec.label"
+                  class="rounded-lg border border-[#dde6dc] bg-[#fafbf7] p-4"
+                  @mouseenter="liftCard"
+                  @mouseleave="settleCard"
+                >
+                  <Icon :icon="spec.icon" class="mb-3 text-2xl text-secondary" />
+                  <p class="text-xs font-bold uppercase tracking-[0.1em] text-[#647067]">{{ spec.label }}</p>
+                  <p class="mt-1 font-bold leading-6 text-[#111513]">{{ spec.value }}</p>
+                </div>
+              </div>
+
+              <div class="mt-8 grid gap-6 md:grid-cols-3">
+                <div v-if="semilla.efectos?.length">
+                  <h4 class="mb-3 font-extrabold text-[#111513]">Efectos</h4>
+                  <div class="flex flex-wrap gap-2">
+                    <BaseBadge v-for="efecto in semilla.efectos" :key="efecto" variant="primary">
+                      {{ efecto }}
+                    </BaseBadge>
                   </div>
                 </div>
-                <div class="flex items-start gap-3">
-                  <Icon icon="mdi:chart-line" class="text-2xl text-main mt-1" />
-                  <div>
-                    <p class="font-semibold">Rendimiento Interior</p>
-                    <p class="text-gray-600">{{ semilla.rendimiento_interior }}</p>
+                <div v-if="semilla.sabores?.length">
+                  <h4 class="mb-3 font-extrabold text-[#111513]">Sabores</h4>
+                  <div class="flex flex-wrap gap-2">
+                    <BaseBadge v-for="sabor in semilla.sabores" :key="sabor" variant="secondary">
+                      {{ sabor }}
+                    </BaseBadge>
                   </div>
                 </div>
-                <div class="flex items-start gap-3">
-                  <Icon icon="mdi:chart-line" class="text-2xl text-main mt-1" />
-                  <div>
-                    <p class="font-semibold">Rendimiento Exterior</p>
-                    <p class="text-gray-600">{{ semilla.rendimiento_exterior }}</p>
-                  </div>
-                </div>
-                <div class="flex items-start gap-3">
-                  <Icon icon="mdi:school-outline" class="text-2xl text-main mt-1" />
-                  <div>
-                    <p class="font-semibold">Dificultad</p>
-                    <p class="text-gray-600">{{ semilla.dificultad }}</p>
+                <div v-if="semilla.aromas?.length">
+                  <h4 class="mb-3 font-extrabold text-[#111513]">Aromas</h4>
+                  <div class="flex flex-wrap gap-2">
+                    <BaseBadge v-for="aroma in semilla.aromas" :key="aroma" variant="info">
+                      {{ aroma }}
+                    </BaseBadge>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="divider" />
-
-            <!-- Efectos, Sabores, Aromas -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div v-if="semilla.efectos && semilla.efectos.length > 0">
-                <h4 class="font-bold mb-3">Efectos</h4>
-                <div class="flex flex-wrap gap-2">
-                  <BaseBadge v-for="efecto in semilla.efectos" :key="efecto" variant="primary">
-                    {{ efecto }}
-                  </BaseBadge>
-                </div>
-              </div>
-              <div v-if="semilla.sabores && semilla.sabores.length > 0">
-                <h4 class="font-bold mb-3">Sabores</h4>
-                <div class="flex flex-wrap gap-2">
-                  <BaseBadge v-for="sabor in semilla.sabores" :key="sabor" variant="secondary">
-                    {{ sabor }}
-                  </BaseBadge>
-                </div>
-              </div>
-              <div v-if="semilla.aromas && semilla.aromas.length > 0">
-                <h4 class="font-bold mb-3">Aromas</h4>
-                <div class="flex flex-wrap gap-2">
-                  <BaseBadge v-for="aroma in semilla.aromas" :key="aroma" variant="gradient">
-                    {{ aroma }}
-                  </BaseBadge>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Info específica de ROPA -->
-          <div v-if="isRopa && ropa">
-            <div class="divider" />
-            <h3 class="text-xl font-bold mb-4">Detalles del Producto</h3>
-            <div class="space-y-3">
-              <div class="flex items-center gap-3">
-                <Icon icon="mdi:hanger" class="text-2xl text-main" />
-                <div>
-                  <p class="font-semibold">Tallas Disponibles</p>
-                  <p class="text-gray-600">{{ ropa.tallas.map(t => t.talla).join(', ') }}</p>
-                </div>
-              </div>
-              <div v-if="ropa.colores.length > 0" class="flex items-center gap-3">
-                <Icon icon="mdi:palette" class="text-2xl text-main" />
-                <div>
-                  <p class="font-semibold">Colores Disponibles</p>
-                  <p class="text-gray-600">{{ ropa.colores.map(c => c.color).join(', ') }}</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-3">
-                <Icon icon="mdi:tag" class="text-2xl text-main" />
-                <div>
-                  <p class="font-semibold">Categoría</p>
-                  <p class="text-gray-600">{{ ropa.categoria }}</p>
+            <div v-if="isRopa && ropa" class="mt-10 border-t border-[#dde6dc] pt-8">
+              <h3 class="text-2xl font-extrabold text-[#111513]">Detalles de producto</h3>
+              <div class="mt-5 grid gap-3 md:grid-cols-3">
+                <div
+                  v-for="spec in ropaSpecs"
+                  :key="spec.label"
+                  class="rounded-lg border border-[#dde6dc] bg-[#fafbf7] p-4"
+                  @mouseenter="liftCard"
+                  @mouseleave="settleCard"
+                >
+                  <Icon :icon="spec.icon" class="mb-3 text-2xl text-secondary" />
+                  <p class="text-xs font-bold uppercase tracking-[0.1em] text-[#647067]">{{ spec.label }}</p>
+                  <p class="mt-1 font-bold leading-6 text-[#111513]">{{ spec.value }}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Productos Relacionados -->
-      <div v-if="relacionados.length > 0">
-        <h2 class="text-2xl md:text-3xl font-bold text-gradient mb-6">
-          Productos Relacionados
-        </h2>
-        <div class="grid-products">
-          <!-- TODO: Crear componente genérico o detectar tipo -->
-          <div v-for="prod in relacionados" :key="prod.id" class="text-center p-4 bg-white rounded-lg">
-            <p>{{ prod.nombre }}</p>
-            <p class="text-sm text-gray-500">SKU: {{ prod.sku }}</p>
+        <section v-if="relacionados.length > 0" class="product-reveal mt-10 opacity-0">
+          <div class="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+            <div>
+              <p class="text-sm font-bold uppercase tracking-[0.14em] text-[#936037]">También puede interesarte</p>
+              <h2 class="mt-2 text-3xl font-extrabold text-[#111513]">Productos relacionados</h2>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
-    </div>
-  </div>
+          <div class="grid gap-4 md:grid-cols-3">
+            <div
+              v-for="prod in relacionados"
+              :key="prod.id"
+              class="rounded-lg border border-[#dde6dc] bg-white p-5"
+              @mouseenter="liftCard"
+              @mouseleave="settleCard"
+            >
+              <p class="font-extrabold text-[#111513]">{{ prod.nombre }}</p>
+              <p class="mt-2 text-sm text-[#647067]">SKU: {{ prod.sku }}</p>
+            </div>
+          </div>
+        </section>
+      </section>
+    </template>
+  </main>
 </template>

@@ -1,38 +1,179 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { Carousel, Slide, Navigation } from 'vue3-carousel'
+import { Carousel, Navigation, Slide } from 'vue3-carousel'
 import 'vue3-carousel/dist/carousel.css'
+import { getSemillaPrecio } from '~~/types/product'
+import type { SeedCategory, Semilla } from '~~/types'
 
-const { fadeIn, fadeOut } = useMotion()
+const { animate, fadeIn, fadeOut } = useMotion()
+const config = useRuntimeConfig()
 
-// Obtener semillas desde Directus
 const { fetchSemillas } = useSemillas()
 const { semillas, pending } = await fetchSemillas()
 
-// Productos destacados (primeras 10 semillas)
-const featuredSeeds = computed(() => semillas.value?.slice(0, 10) || [])
-
-// Newsletter
 const newsletterEmail = ref('')
 const newsletterError = ref('')
 const newsletterSuccess = ref(false)
 const isSubmittingNewsletter = ref(false)
 
+const directusAssetUrl = (uuid: string | null | undefined): string => {
+  if (!uuid) return ''
+  return `${config.public.directus.url}/assets/${uuid}`
+}
+
+const availableSeeds = computed(() =>
+  (semillas.value || []).filter(seed => seed.producto.disponible)
+)
+
+const featuredSeeds = computed(() =>
+  availableSeeds.value.slice(0, 10)
+)
+
+const heroSeed = computed(() =>
+  availableSeeds.value.find(seed => seed.producto.imagen_principal) || availableSeeds.value[0] || null
+)
+
+const heroImage = computed(() =>
+  directusAssetUrl(heroSeed.value?.producto.imagen_principal)
+)
+
+const formatSeedPrice = (seed: Semilla): string => {
+  const price = getSemillaPrecio(seed)
+  const value = price.precioDescuento || price.precio
+  return value > 0 ? `${value.toFixed(2)}€` : 'Consultar'
+}
+
+const categoriesCount = computed(() =>
+  new Set((semillas.value || []).map(seed => seed.categoria).filter(Boolean)).size
+)
+
+const heroStats = computed(() => [
+  {
+    value: `${availableSeeds.value.length}`,
+    label: 'referencias disponibles'
+  },
+  {
+    value: `${categoriesCount.value}`,
+    label: 'familias de semillas'
+  },
+  {
+    value: '24/48h',
+    label: 'preparacion habitual'
+  }
+])
+
+const categoryMeta: Array<{
+  name: string
+  category?: SeedCategory
+  description: string
+  to: string
+  icon: string
+}> = [
+  {
+    name: 'Feminizadas',
+    category: 'Feminizadas',
+    description: 'Geneticas estables para seleccionar con criterio.',
+    to: '/products/semillas',
+    icon: 'mdi:gender-female'
+  },
+  {
+    name: 'Autoflorecientes',
+    category: 'Autoflorecientes',
+    description: 'Variedades rapidas para ciclos simples y eficientes.',
+    to: '/products/semillas',
+    icon: 'mdi:timer-sand'
+  },
+  {
+    name: 'CBD Premium',
+    category: 'CBD',
+    description: 'Opciones enfocadas en perfiles suaves y equilibrados.',
+    to: '/products/semillas',
+    icon: 'mdi:leaf'
+  },
+  {
+    name: 'Ropa y accesorios',
+    description: 'Piezas de marca y complementos para el dia a dia.',
+    to: '/products/ropa',
+    icon: 'mdi:tshirt-crew-outline'
+  }
+]
+
+const categoryCards = computed(() =>
+  categoryMeta.map(item => {
+    const seed = item.category
+      ? availableSeeds.value.find(seed => seed.categoria === item.category && seed.producto.imagen_principal)
+      : null
+
+    return {
+      ...item,
+      image: directusAssetUrl(seed?.producto.imagen_principal),
+      productName: seed?.producto.nombre
+    }
+  })
+)
+
+const benefits = [
+  {
+    icon: 'mdi:seed-outline',
+    title: 'Catalogo curado',
+    description: 'Semillas organizadas por categoria, dominancia y dificultad.'
+  },
+  {
+    icon: 'mdi:package-variant-closed',
+    title: 'Envio discreto',
+    description: 'Preparacion cuidada y embalaje sobrio para cada pedido.'
+  },
+  {
+    icon: 'mdi:shield-check-outline',
+    title: 'Compra segura',
+    description: 'Checkout protegido y datos tratados con cuidado.'
+  },
+  {
+    icon: 'mdi:message-text-outline',
+    title: 'Asesoria clara',
+    description: 'Te ayudamos a elegir sin ruido ni promesas vacias.'
+  }
+]
+
+const editorialNotes = [
+  'Seleccion premium de geneticas de bancos reconocidos.',
+  'Informacion directa sobre THC, CBD, floracion, sabor y dificultad.',
+  'Navegacion canonica por semillas y ropa, sin rutas legacy visibles.'
+]
+
+const carouselSettings = {
+  itemsToShow: 1.12,
+  snapAlign: 'start' as const,
+  wrapAround: false,
+  breakpoints: {
+    640: {
+      itemsToShow: 2.1,
+      snapAlign: 'start' as const
+    },
+    768: {
+      itemsToShow: 3,
+      snapAlign: 'start' as const
+    },
+    1024: {
+      itemsToShow: 4,
+      snapAlign: 'start' as const
+    }
+  }
+}
+
 const handleNewsletterSubmit = async () => {
-  // Limpiar mensajes previos
   newsletterError.value = ''
   newsletterSuccess.value = false
 
-  // Validación básica
-  if (!newsletterEmail.value || !newsletterEmail.value.includes('@')) {
-    newsletterError.value = 'Por favor, introduce un email válido'
+  if (!newsletterEmail.value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newsletterEmail.value)) {
+    newsletterError.value = 'Introduce un email valido'
     return
   }
 
   isSubmittingNewsletter.value = true
 
   try {
-    const response = await $fetch('/api/newsletter', {
+    await $fetch('/api/newsletter', {
       method: 'POST',
       body: {
         email: newsletterEmail.value
@@ -41,227 +182,258 @@ const handleNewsletterSubmit = async () => {
 
     newsletterSuccess.value = true
     newsletterEmail.value = ''
-    
-    // Ocultar mensaje de éxito después de 5 segundos
+
     setTimeout(() => {
       newsletterSuccess.value = false
     }, 5000)
   } catch (error: any) {
-    if (error.statusCode === 400) {
-      newsletterError.value = 'Este email ya está suscrito a nuestro newsletter'
-    } else {
-      newsletterError.value = 'Hubo un error al procesar tu suscripción. Por favor, intenta de nuevo.'
-    }
+    newsletterError.value = error.data?.statusMessage || 'No hemos podido procesar la suscripcion'
   } finally {
     isSubmittingNewsletter.value = false
   }
 }
 
-// Configuración del carousel
-const carouselSettings = {
-  itemsToShow: 1,
-  snapAlign: 'center' as const,
-  wrapAround: true,
-  autoplay: 3000,
-  breakpoints: {
-    640: {
-      itemsToShow: 2,
-      snapAlign: 'start' as const,
-    },
-    768: {
-      itemsToShow: 3,
-      snapAlign: 'start' as const,
-    },
-    1024: {
-      itemsToShow: 4,
-      snapAlign: 'start' as const,
-    },
-    1280: {
-      itemsToShow: 5,
-      snapAlign: 'start' as const,
-    },
-  },
+const liftCard = (event: MouseEvent) => {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
+
+  animate(target, {
+    y: -6,
+    scale: 1.01,
+    duration: 240,
+    ease: 'outQuad'
+  })
 }
 
-// Características de la tienda
-const features = [
-  {
-    icon: 'mdi:truck-fast',
-    title: 'Envío Gratis',
-    description: 'En pedidos superiores a 30€'
-  },
-  {
-    icon: 'mdi:shield-check',
-    title: 'Pago Seguro',
-    description: 'Múltiples métodos de pago'
-  },
-  {
-    icon: 'mdi:package-variant',
-    title: 'Embalaje Discreto',
-    description: 'Tu privacidad es importante'
-  },
-  {
-    icon: 'mdi:headset',
-    title: 'Soporte 24/7',
-    description: 'Estamos aquí para ayudarte'
-  }
-]
+const settleCard = (event: MouseEvent) => {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
 
-// Categorías destacadas
-const featuredCategories = [
-  {
-    name: 'Semillas Feminizadas',
-    slug: 'feminizadas',
-    to: '/products/semillas',
-    image: 'https://placehold.co/600x400/36A9E1/FFF?text=Semillas+Feminizadas',
-    description: '100% hembras garantizadas'
-  },
-  {
-    name: 'Autoflorecientes',
-    slug: 'autoflorecientes',
-    to: '/products/semillas',
-    image: 'https://placehold.co/600x400/3AAA35/FFF?text=Autoflorecientes',
-    description: 'Cultivo rápido y sencillo'
-  },
-  {
-    name: 'CBD Premium',
-    slug: 'cbd',
-    to: '/products/semillas',
-    image: 'https://placehold.co/600x400/936037/FFF?text=CBD+Premium',
-    description: 'Alto contenido en CBD'
-  },
-  {
-    name: 'Parafernalia',
-    slug: 'parafernalia',
-    to: '/products/ropa',
-    image: 'https://placehold.co/600x400/36A9E1/FFF?text=Parafernalia',
-    description: 'Accesorios de calidad'
-  }
-]
+  animate(target, {
+    y: 0,
+    scale: 1,
+    duration: 260,
+    ease: 'outQuad'
+  })
+}
+
+const revealImage = (event: MouseEvent) => {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
+
+  const image = target.querySelector('[data-motion-image]')
+  if (!image) return
+
+  animate(image, {
+    scale: 1.035,
+    duration: 420,
+    ease: 'outQuad'
+  })
+}
+
+const settleImage = (event: MouseEvent) => {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
+
+  const image = target.querySelector('[data-motion-image]')
+  if (!image) return
+
+  animate(image, {
+    scale: 1,
+    duration: 520,
+    ease: 'outQuad'
+  })
+}
+
+onMounted(() => {
+  animate('.home-reveal', {
+    opacity: [0, 1],
+    y: [16, 0],
+    duration: 420,
+    delay: (_el: unknown, index: number) => index * 65,
+    ease: 'outQuad'
+  })
+})
 </script>
 
 <template>
-  <div>
-    <!-- Hero Section -->
-    <section class="hero-section bg-gradient-main text-white">
-      <div class="container-custom text-center py-16 md:py-24">
-        <h1 class="text-4xl md:text-6xl font-bold mb-6 animate-fade-in">
-          Bienvenido a Washer Seeds
-        </h1>
-        <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto animate-slide-up">
-          Tu tienda de confianza para semillas de calidad premium y productos cannábicos
-        </p>
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 animate-scale-in">
-          <BaseButton
-            variant="secondary"
-            size="lg"
-            icon="mdi:seedling"
-            @click="$router.push('/products/semillas')"
-          >
-            Ver Semillas
-          </BaseButton>
-          <BaseButton
-            variant="outline"
-            size="lg"
-            icon="mdi:shopping"
-            class="!text-white !border-white hover:!bg-white hover:!text-main"
-            @click="$router.push('/products/ropa')"
-          >
-            Ver Productos
-          </BaseButton>
-        </div>
-      </div>
-    </section>
+  <main class="overflow-hidden bg-[#fafbf7]">
+    <section class="relative border-b border-[#dde6dc] bg-[#f6f8f1]">
+      <div class="container-custom grid min-h-[calc(100vh-164px)] items-center gap-10 py-12 md:grid-cols-[1.02fr_0.98fr] md:py-16 lg:min-h-[680px]">
+        <div class="home-reveal max-w-3xl opacity-0">
+          <p class="mb-5 inline-flex items-center gap-2 rounded-lg border border-[#d4dfd2] bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#647067]">
+            <Icon icon="mdi:sprout-outline" class="text-base text-secondary" />
+            PREMIUM SEED STORE
+          </p>
+          <h1 class="max-w-4xl text-[2.55rem] font-extrabold leading-[0.98] tracking-normal text-[#111513] sm:text-5xl lg:text-7xl">
+            Geneticas premium, compra simple y criterio experto.
+          </h1>
+          <p class="mt-6 max-w-2xl text-base leading-7 text-[#4c574f] sm:text-lg">
+            Washer Seeds ordena semillas y productos cannabicos en una experiencia mas limpia, directa y pensada para elegir rapido sin perder informacion tecnica.
+          </p>
 
-    <!-- Features -->
-    <section class="py-12 bg-gray-50">
-      <div class="container-custom">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div
-            v-for="feature in features"
-            :key="feature.title"
-            class="flex flex-col items-center text-center p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow"
-          >
-            <div class="w-16 h-16 rounded-full bg-gradient flex items-center justify-center mb-4">
-              <Icon :icon="feature.icon" class="text-3xl text-white" />
+          <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+            <BaseButton
+              variant="gradient"
+              size="lg"
+              icon="mdi:seed-outline"
+              @click="$router.push('/products/semillas')"
+            >
+              Ver semillas
+            </BaseButton>
+            <BaseButton
+              variant="outline"
+              size="lg"
+              icon="mdi:tshirt-crew-outline"
+              @click="$router.push('/products/ropa')"
+            >
+              Ver ropa
+            </BaseButton>
+          </div>
+
+          <dl class="mt-10 grid max-w-2xl grid-cols-3 border-y border-[#dde6dc]">
+            <div
+              v-for="stat in heroStats"
+              :key="stat.label"
+              class="py-4 pr-4 first:pl-0"
+            >
+              <dt class="text-2xl font-extrabold text-[#111513] md:text-3xl">{{ stat.value }}</dt>
+              <dd class="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-[#647067]">{{ stat.label }}</dd>
             </div>
-            <h3 class="font-bold text-lg mb-2">{{ feature.title }}</h3>
-            <p class="text-gray-600 text-sm">{{ feature.description }}</p>
+          </dl>
+        </div>
+
+        <div class="home-reveal opacity-0">
+          <NuxtLink
+            v-if="heroSeed"
+            :to="`/products/semillas/${heroSeed.producto.slug}`"
+            class="group block overflow-hidden rounded-lg border border-[#dde6dc] bg-white"
+            @mouseenter="revealImage"
+            @mouseleave="settleImage"
+          >
+            <div class="relative aspect-[4/5] bg-[#e8efe4]">
+              <img
+                v-if="heroImage"
+                :src="heroImage"
+                :alt="heroSeed.producto.nombre"
+                class="h-full w-full object-cover will-change-transform"
+                data-motion-image
+              >
+              <div v-else class="flex h-full w-full items-center justify-center text-[#647067]">
+                <Icon icon="mdi:image-off-outline" class="text-5xl" />
+              </div>
+              <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent p-5 text-white">
+                <p class="text-xs font-bold uppercase tracking-[0.14em] text-white/75">Producto destacado</p>
+                <h2 class="mt-2 text-2xl font-extrabold">{{ heroSeed.producto.nombre }}</h2>
+                <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                  <span class="rounded-lg bg-white/16 px-3 py-1 font-semibold backdrop-blur">{{ heroSeed.categoria }}</span>
+                  <span class="rounded-lg bg-white/16 px-3 py-1 font-semibold backdrop-blur">{{ heroSeed.dominancia }}</span>
+                  <span class="rounded-lg bg-white px-3 py-1 font-extrabold text-[#111513]">Desde {{ formatSeedPrice(heroSeed) }}</span>
+                </div>
+              </div>
+            </div>
+          </NuxtLink>
+          <div v-else class="flex aspect-[4/5] items-center justify-center rounded-lg border border-[#dde6dc] bg-white text-[#647067]">
+            <Icon icon="mdi:loading" class="text-4xl text-main" />
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Featured Categories -->
-    <section class="py-16">
+    <section class="border-b border-[#dde6dc] bg-white">
+      <div class="container-custom grid gap-px py-4 sm:grid-cols-2 lg:grid-cols-4">
+        <article
+          v-for="benefit in benefits"
+          :key="benefit.title"
+          class="home-reveal flex gap-4 px-0 py-5 opacity-0 sm:px-4"
+          @mouseenter="liftCard"
+          @mouseleave="settleCard"
+        >
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#edf6ed] text-secondary">
+            <Icon :icon="benefit.icon" class="text-2xl" />
+          </div>
+          <div>
+            <h2 class="text-base font-extrabold text-[#111513]">{{ benefit.title }}</h2>
+            <p class="mt-1 text-sm leading-6 text-[#647067]">{{ benefit.description }}</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="py-14 md:py-20">
       <div class="container-custom">
-        <div class="text-center mb-12">
-          <h2 class="text-3xl md:text-4xl font-bold text-gradient mb-4">
-            Categorías Destacadas
-          </h2>
-          <p class="text-gray-600 text-lg max-w-2xl mx-auto">
-            Descubre nuestra amplia selección de productos premium
-          </p>
+        <div class="home-reveal mb-8 flex flex-col justify-between gap-4 opacity-0 md:mb-10 md:flex-row md:items-end">
+          <div>
+            <p class="text-sm font-bold uppercase tracking-[0.14em] text-[#936037]">Comprar por categoria</p>
+            <h2 class="mt-3 max-w-2xl text-3xl font-extrabold leading-tight text-[#111513] md:text-5xl">
+              El catalogo empieza por lo que necesitas encontrar.
+            </h2>
+          </div>
+          <BaseButton
+            variant="outline"
+            icon="mdi:arrow-right"
+            icon-position="right"
+            @click="$router.push('/products/semillas')"
+          >
+            Todo el catalogo
+          </BaseButton>
         </div>
 
-        <div class="grid-categories">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <NuxtLink
-            v-for="category in featuredCategories"
-            :key="category.slug"
+            v-for="category in categoryCards"
+            :key="category.name"
             :to="category.to"
-            class="category-card group"
+            class="home-reveal group min-h-[320px] overflow-hidden rounded-lg border border-[#dde6dc] bg-white opacity-0"
+            @mouseenter="(event) => { liftCard(event); revealImage(event) }"
+            @mouseleave="(event) => { settleCard(event); settleImage(event) }"
           >
-            <img
-              :src="category.image"
-              :alt="category.name"
-              class="w-full h-full object-cover"
-            >
-            <div class="category-card-overlay" />
-            <div class="category-card-content">
-              <h3 class="text-2xl font-bold mb-2">{{ category.name }}</h3>
-              <p class="text-sm opacity-90">{{ category.description }}</p>
+            <div class="relative h-48 overflow-hidden bg-[#edf3e8]">
+              <img
+                v-if="category.image"
+                :src="category.image"
+                :alt="category.productName || category.name"
+                class="h-full w-full object-cover will-change-transform"
+                data-motion-image
+              >
+              <div v-else class="flex h-full w-full items-center justify-center text-[#936037]">
+                <Icon :icon="category.icon" class="text-6xl" />
+              </div>
+            </div>
+            <div class="p-5">
+              <div class="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-[#f1f6f0] text-[#111513]">
+                <Icon :icon="category.icon" class="text-xl" />
+              </div>
+              <h3 class="text-xl font-extrabold text-[#111513]">{{ category.name }}</h3>
+              <p class="mt-2 text-sm leading-6 text-[#647067]">{{ category.description }}</p>
             </div>
           </NuxtLink>
         </div>
       </div>
     </section>
 
-    <!-- CTA Banner -->
-    <section class="py-16 bg-gray-900 text-white">
-      <div class="container-custom text-center">
-        <Icon icon="mdi:leaf" class="text-6xl text-gradient mb-6 mx-auto" />
-        <h2 class="text-3xl md:text-4xl font-bold mb-4">
-          ¿Necesitas Ayuda?
-        </h2>
-        <p class="text-lg mb-8 max-w-2xl mx-auto text-gray-300">
-          Nuestro equipo de expertos está disponible para asesorarte en tu cultivo
-        </p>
-        <BaseButton
-          variant="gradient"
-          size="lg"
-          icon="mdi:phone"
-          @click="$router.push('/contact')"
-        >
-          Contactar Ahora
-        </BaseButton>
-      </div>
-    </section>
-
-    <!-- Featured Products -->
-    <section class="py-16 bg-gray-50">
+    <section class="bg-white py-14 md:py-20">
       <div class="container-custom">
-        <div class="text-center mb-12">
-          <h2 class="text-3xl md:text-4xl font-bold text-gradient mb-4">
-            Productos Destacados
-          </h2>
-          <p class="text-gray-600 text-lg max-w-2xl mx-auto">
-            Nuestra selección de semillas y productos más populares
-          </p>
+        <div class="home-reveal mb-8 flex flex-col justify-between gap-4 opacity-0 md:flex-row md:items-end">
+          <div>
+            <p class="text-sm font-bold uppercase tracking-[0.14em] text-main">Seleccion destacada</p>
+            <h2 class="mt-3 text-3xl font-extrabold text-[#111513] md:text-5xl">
+              Productos para empezar por lo esencial.
+            </h2>
+          </div>
+          <BaseButton
+            variant="gradient"
+            icon="mdi:arrow-right"
+            icon-position="right"
+            @click="$router.push('/products/semillas')"
+          >
+            Ver semillas
+          </BaseButton>
         </div>
 
-        <Carousel v-if="!pending && featuredSeeds.length > 0" v-bind="carouselSettings">
+        <Carousel v-if="!pending && featuredSeeds.length > 0" v-bind="carouselSettings" class="home-carousel">
           <Slide v-for="semilla in featuredSeeds" :key="semilla.id">
-            <div class="px-2">
+            <div class="h-full px-2">
               <SeedCard :semilla="semilla" />
             </div>
           </Slide>
@@ -270,116 +442,123 @@ const featuredCategories = [
             <Navigation />
           </template>
         </Carousel>
-        
-        <!-- Loading state -->
-        <div v-else-if="pending" class="flex justify-center items-center py-12">
+
+        <div v-else-if="pending" class="flex items-center justify-center py-16">
           <Icon icon="mdi:loading" class="text-4xl text-main animate-spin" />
         </div>
-        
-        <!-- Empty state -->
-        <div v-else class="text-center py-12">
-          <p class="text-gray-600">No hay productos disponibles en este momento</p>
-        </div>
 
-        <div class="text-center mt-12">
-          <BaseButton
-            variant="outline"
-            size="lg"
-            icon="mdi:arrow-right"
-            icon-position="right"
-            @click="$router.push('/products/semillas')"
-          >
-            Ver Todos los Productos
-          </BaseButton>
+        <div v-else class="rounded-lg border border-[#dde6dc] bg-[#fafbf7] p-10 text-center text-[#647067]">
+          No hay productos disponibles en este momento.
         </div>
       </div>
     </section>
 
-    <!-- Newsletter -->
-    <section class="py-16 bg-gradient-main text-white">
-      <div class="container-custom">
-        <div class="max-w-3xl mx-auto text-center">
-          <h2 class="text-3xl font-bold mb-4">
-            Suscríbete a Nuestro Newsletter
+    <section class="border-y border-[#dde6dc] bg-[#111513] py-14 text-white md:py-20">
+      <div class="container-custom grid gap-10 md:grid-cols-[0.9fr_1.1fr] md:items-center">
+        <div class="home-reveal opacity-0">
+          <p class="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Compra informada</p>
+          <h2 class="mt-3 text-3xl font-extrabold leading-tight md:text-5xl">
+            Menos ruido visual, mas informacion util antes de comprar.
           </h2>
-          <p class="text-lg mb-8 opacity-90">
-            Recibe ofertas exclusivas, consejos de cultivo y las últimas novedades
+        </div>
+        <div class="home-reveal grid gap-3 opacity-0">
+          <div
+            v-for="note in editorialNotes"
+            :key="note"
+            class="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 p-4"
+            @mouseenter="liftCard"
+            @mouseleave="settleCard"
+          >
+            <Icon icon="mdi:check-circle-outline" class="mt-0.5 text-2xl text-secondary" />
+            <p class="leading-7 text-white/78">{{ note }}</p>
+          </div>
+          <p class="mt-2 text-sm leading-6 text-white/55">
+            Recuerda revisar la legislacion aplicable en tu lugar de residencia antes de comprar o usar cualquier producto.
           </p>
-          <form class="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto" @submit.prevent="handleNewsletterSubmit">
-            <input
-              v-model="newsletterEmail"
-              type="email"
-              placeholder="Tu email"
-              required
-              :disabled="isSubmittingNewsletter"
-              class="flex-1 px-6 py-4 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-            <BaseButton 
-              variant="secondary" 
-              size="lg" 
-              type="submit"
-              :disabled="isSubmittingNewsletter"
-            >
-              {{ isSubmittingNewsletter ? 'Enviando...' : 'Suscribirse' }}
-            </BaseButton>
-          </form>
-
-          <!-- Success Message -->
-          <Transition
-            :css="false"
-            @enter="fadeIn"
-            @leave="fadeOut"
-          >
-            <div v-if="newsletterSuccess" class="mt-4 p-4 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg">
-              <Icon icon="mdi:check-circle" class="inline text-xl mr-2" />
-              <span class="font-medium">¡Gracias por suscribirte! Pronto recibirás nuestras novedades.</span>
-            </div>
-          </Transition>
-
-          <!-- Error Message -->
-          <Transition
-            :css="false"
-            @enter="fadeIn"
-            @leave="fadeOut"
-          >
-            <div v-if="newsletterError" class="mt-4 p-4 bg-red-500/20 backdrop-blur-sm border border-red-300/30 rounded-lg">
-              <Icon icon="mdi:alert-circle" class="inline text-xl mr-2" />
-              <span class="font-medium">{{ newsletterError }}</span>
-            </div>
-          </Transition>
         </div>
       </div>
     </section>
-  </div>
+
+    <section class="py-14 md:py-20">
+      <div class="container-custom">
+        <div class="home-reveal grid gap-8 rounded-lg border border-[#dde6dc] bg-white p-6 opacity-0 md:grid-cols-[0.85fr_1.15fr] md:p-8 lg:p-10">
+          <div>
+            <p class="text-sm font-bold uppercase tracking-[0.14em] text-[#936037]">Newsletter</p>
+            <h2 class="mt-3 text-3xl font-extrabold leading-tight text-[#111513] md:text-4xl">
+              Novedades y ofertas sin saturar tu bandeja.
+            </h2>
+            <p class="mt-4 text-sm leading-6 text-[#647067]">
+              Recibe lanzamientos, reposiciones y seleccion editorial de productos.
+            </p>
+          </div>
+
+          <div>
+            <form class="flex flex-col gap-3 sm:flex-row" @submit.prevent="handleNewsletterSubmit">
+              <input
+                v-model="newsletterEmail"
+                type="email"
+                placeholder="tu@email.com"
+                required
+                :disabled="isSubmittingNewsletter"
+                class="min-h-12 flex-1 rounded-lg border border-[#cfdace] bg-[#fafbf7] px-4 text-[#111513] outline-none focus:border-main focus:ring-2 focus:ring-main/20 disabled:opacity-50"
+              >
+              <BaseButton
+                variant="gradient"
+                size="lg"
+                type="submit"
+                :disabled="isSubmittingNewsletter"
+              >
+                {{ isSubmittingNewsletter ? 'Enviando...' : 'Suscribirse' }}
+              </BaseButton>
+            </form>
+
+            <Transition :css="false" @enter="fadeIn" @leave="fadeOut">
+              <div v-if="newsletterSuccess" class="mt-4 rounded-lg border border-secondary/30 bg-secondary/10 p-4 text-sm font-semibold text-[#20622f]">
+                Suscripcion completada. Te avisaremos cuando haya novedades.
+              </div>
+            </Transition>
+
+            <Transition :css="false" @enter="fadeIn" @leave="fadeOut">
+              <div v-if="newsletterError" class="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                {{ newsletterError }}
+              </div>
+            </Transition>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
 </template>
 
 <style>
-/* Estilos personalizados para vue3-carousel */
-.carousel__prev,
-.carousel__next {
-  @apply text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity;
-  background-image: linear-gradient(120deg, rgb(54, 169, 225), rgb(58, 170, 53));
+.home-carousel .carousel__viewport {
+  overflow: visible;
 }
 
-.carousel__prev:disabled,
-.carousel__next:disabled {
-  @apply opacity-30 cursor-not-allowed;
+.home-carousel .carousel__slide {
+  align-items: stretch;
 }
 
-.carousel__pagination {
-  @apply mt-6;
+.home-carousel .carousel__prev,
+.home-carousel .carousel__next {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #dde6dc;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111513;
+  box-shadow: 0 8px 22px rgb(17 21 19 / 8%);
 }
 
-.carousel__pagination-button {
-  @apply w-3 h-3 rounded-full bg-gray-300 transition-colors;
+.home-carousel .carousel__prev:hover,
+.home-carousel .carousel__next:hover {
+  background: #111513;
+  color: #ffffff;
 }
 
-.carousel__pagination-button:hover {
-  background-color: rgb(54, 169, 225);
-}
-
-.carousel__pagination-button--active {
-  @apply scale-125;
-  background-image: linear-gradient(120deg, rgb(54, 169, 225), rgb(58, 170, 53));
+.home-carousel .carousel__prev:disabled,
+.home-carousel .carousel__next:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
 }
 </style>

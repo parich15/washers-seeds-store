@@ -128,7 +128,7 @@ const paymentMethods = [
 
         <!-- Dynamic Footer Menu Sections -->
         <div v-for="section in footerMenu?.menu" :key="section.texto">
-          <h4 class="text-lg font-bold text-white mb-4">
+          <h4 class="font-footer-display text-2xl text-white mb-4">
             {{ section.texto }}
           </h4>
           <ul v-if="section.hijos && section.hijos.length > 0" class="space-y-2">
