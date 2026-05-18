@@ -2,8 +2,8 @@
 import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useCartStore } from '../../stores/cart'
-import { getPrecioItem } from '../../../types/product'
-import type { Ropa } from '../../../types'
+import { getPrecioItem } from '~~/types/product'
+import type { Ropa } from '~~/types'
 
 interface Props {
   ropa: Ropa
@@ -57,8 +57,23 @@ const handleAddToCart = (event: Event) => {
   event.preventDefault()
   event.stopPropagation()
   
-  // TODO: Adaptar addProductToCart para trabajar con Ropa
-  // cartStore.addProductToCart(props.ropa, 1)
+  cartStore.addCartLine({
+    product: {
+      id: String(props.ropa.id),
+      collection: 'ropa',
+      slug: props.ropa.producto.slug,
+      name: props.ropa.producto.nombre,
+      image: imageUrl.value,
+      price: precioInfo.value.precioDescuento || precioInfo.value.precio,
+      sku: props.ropa.producto.sku,
+      category: props.ropa.categoria
+    },
+    quantity: 1,
+    selectedOptions: {
+      talla: props.ropa.tallas[0]?.talla || '',
+      color: props.ropa.colores[0]?.color || ''
+    }
+  })
   
   // Mostrar feedback visual
   addedToCart.value = true

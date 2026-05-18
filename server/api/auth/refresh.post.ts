@@ -10,16 +10,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const directusUrl = 'http://161.35.46.209:8055'
-
     // Refrescar el token con Directus
-    const refreshResponse = await $fetch<{
+    const refreshResponse = await directusFetch<{
       data: {
         access_token: string
         refresh_token: string
         expires: number
       }
-    }>(`${directusUrl}/auth/refresh`, {
+    }>('/auth/refresh', {
       method: 'POST',
       body: {
         refresh_token,

@@ -1,12 +1,23 @@
 // ==================== CART TYPES ====================
 
-import type { Product } from './product'
+import type { CollectionType } from './product'
 import type { Address, OrderStatus, PaymentStatus, PaymentMethod } from './common'
 import type { User } from './user'
 
+export interface CartProductSnapshot {
+  id: string
+  collection: CollectionType | 'legacy'
+  slug: string
+  name: string
+  image: string
+  price: number
+  sku?: string
+  category?: string
+}
+
 export interface CartItem {
   id: string
-  product: Product
+  product: CartProductSnapshot
   quantity: number
   selectedOptions?: Record<string, string>
   addedAt: string
@@ -74,6 +85,12 @@ export interface OrderHistory {
 export interface AddToCartPayload {
   productId: string
   quantity: number
+  selectedOptions?: Record<string, string>
+}
+
+export interface AddCartLinePayload {
+  product: CartProductSnapshot
+  quantity?: number
   selectedOptions?: Record<string, string>
 }
 

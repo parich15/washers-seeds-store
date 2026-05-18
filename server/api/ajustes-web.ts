@@ -6,16 +6,10 @@ import type { DirectusResponse, AjustesWeb } from '~~/types'
  */
 export default defineEventHandler(async (event) => {
   try {
-    const config = useRuntimeConfig()
-    const directusUrl = config.public.directus?.url || 'http://161.35.46.209:8055'
-    
     // Fetch datos_web collection from Directus
-    const response = await $fetch<DirectusResponse<AjustesWeb>>(
-      `${directusUrl}/items/datos_web/1`,
-      {
-        method: 'GET'
-      }
-    )
+    const response = await directusFetch<DirectusResponse<AjustesWeb>>('/items/datos_web/1', {
+      method: 'GET'
+    })
 
     return response
   } catch (error) {

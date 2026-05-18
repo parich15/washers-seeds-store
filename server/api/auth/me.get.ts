@@ -10,10 +10,9 @@ export default defineEventHandler(async (event) => {
     }
 
     const token = authHeader.replace('Bearer ', '')
-    const directusUrl = 'http://161.35.46.209:8055'
 
     // Obtener datos del usuario desde Directus
-    const userResponse = await $fetch<{
+    const userResponse = await directusFetch<{
       data: {
         id: string
         email: string
@@ -23,7 +22,7 @@ export default defineEventHandler(async (event) => {
         role: string
         phone?: string
       }
-    }>(`${directusUrl}/users/me`, {
+    }>('/users/me', {
       headers: {
         Authorization: `Bearer ${token}`
       }

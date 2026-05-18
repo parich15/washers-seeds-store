@@ -16,19 +16,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Directus URL
-    const directusUrl = 'http://161.35.46.209:8055'
-    
     // Enviar a Directus
-    const response = await $fetch(
-      `${directusUrl}/items/newsletter`,
-      {
-        method: 'POST',
-        body: {
-          email
-        }
+    await directusFetch('/items/newsletter', {
+      method: 'POST',
+      body: {
+        email
       }
-    )
+    })
 
     return {
       success: true,

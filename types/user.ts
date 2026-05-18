@@ -9,8 +9,10 @@ export interface User {
   lastName: string
   phone?: string
   avatar?: string
+  role?: string
+  address?: Address
   addresses?: Address[]
-  createdAt: string
+  createdAt?: string
   updatedAt?: string
 }
 

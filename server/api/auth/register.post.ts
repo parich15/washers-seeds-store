@@ -20,11 +20,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const directusUrl = 'http://161.35.46.209:8055'
     const CUSTOMER_ROLE_ID = 'a4769662-1a68-4285-bf32-9ce8023e2294'
 
     // Crear usuario en Directus
-    const createUserResponse = await $fetch<{
+    const createUserResponse = await directusFetch<{
       data: {
         id: string
         email: string
@@ -32,7 +31,7 @@ export default defineEventHandler(async (event) => {
         last_name: string
         role: string
       }
-    }>(`${directusUrl}/users`, {
+    }>('/users', {
       method: 'POST',
       body: {
         email,
@@ -44,13 +43,13 @@ export default defineEventHandler(async (event) => {
     })
 
     // Autenticar automáticamente después del registro
-    const authResponse = await $fetch<{
+    const authResponse = await directusFetch<{
       data: {
         access_token: string
         refresh_token: string
         expires: number
       }
-    }>(`${directusUrl}/auth/login`, {
+    }>('/auth/login', {
       method: 'POST',
       body: {
         email,

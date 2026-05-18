@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
 import { getOrdersByUserId, getOrderStatusLabel, getOrderStatusColor } from '../../data/mock-orders'
-import type { OrderStatus } from '../../types/common'
+import type { OrderStatus } from '~~/types/common'
 
 // Aplicar middleware de autenticación
 definePageMeta({
@@ -130,7 +130,7 @@ const handleLogout = () => {
                 variant="gradient"
                 size="lg"
                 icon="mdi:shopping"
-                @click="$router.push('/categories/semillas')"
+                @click="$router.push('/products/semillas')"
               >
                 Ir a la Tienda
               </BaseButton>

@@ -19,7 +19,7 @@ export interface ProductoBase {
   meta_titulo: string | null
   meta_descripcion: string | null
   meta_keywords: string | null
-  galeria: any[]  // Array de IDs/UUIDs de assets de Directus
+  galeria: string[]  // Array de UUIDs de assets de Directus
   relacionados: RelacionProducto[]  // Productos relacionados
 }
 
@@ -32,7 +32,7 @@ export interface Cantidad {
   cantidad: number
   precio: string
   descuento: boolean
-  precio_descuento: string
+  precio_descuento: string | null
 }
 
 // ========== SEMILLA (Colección semillas) ==========
@@ -164,8 +164,8 @@ export function getSemillaPrecio(semilla: Semilla): {
   
   return {
     precio: parseFloat(primeraCantidad.precio),
-    precioDescuento: primeraCantidad.descuento 
-      ? parseFloat(primeraCantidad.precio_descuento) 
+    precioDescuento: primeraCantidad.descuento && primeraCantidad.precio_descuento
+      ? parseFloat(primeraCantidad.precio_descuento)
       : null,
     tieneDescuento: primeraCantidad.descuento,
     cantidad: primeraCantidad.cantidad
@@ -186,6 +186,68 @@ export function getGaleriaUrls(galeria: any[], directusUrl: string): string[] {
 export function getImagenPrincipalUrl(uuid: string | null, directusUrl: string): string {
   if (!uuid) return '/placeholder.jpg'
   return `${directusUrl}/assets/${uuid}`
+}
+
+// ========== LEGACY UI TYPES ==========
+// Conservados para componentes y mocks antiguos mientras el frontend migra
+// completamente a Semilla/Ropa desde Directus.
+export interface Brand {
+  id: string
+  name: string
+  slug: string
+  description?: string
+}
+
+export interface Category {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  parent?: string
+  productsCount?: number
+  image?: import('./common').Image
+}
+
+export interface Product {
+  id: string
+  name: string
+  slug: string
+  description: string
+  shortDescription?: string
+  type: import('./common').ProductType | 'seed'
+  images: import('./common').Image[]
+  price: import('./common').Price
+  stock: number
+  inStock: boolean
+  category: Category
+  brand?: Brand
+  tags?: string[]
+  featured?: boolean
+  new?: boolean
+  onSale?: boolean
+  rating?: number
+  reviewsCount?: number
+  sku: string
+  packSize?: number
+  [key: string]: unknown
+}
+
+export interface SeedProduct extends Product {
+  type: 'seed'
+  seedType?: import('./common').SeedType
+  feminized?: boolean
+  autoflowering?: boolean
+  genetics?: Record<string, unknown>
+  cultivation?: Record<string, unknown>
+  growing?: Record<string, unknown>
+}
+
+export interface ParaphernaliaProduct extends Product {
+  type: 'product'
+  material?: string
+  dimensions?: string
+  color?: string
+  specifications?: Record<string, unknown>
 }
 
 /**

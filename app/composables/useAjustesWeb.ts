@@ -5,7 +5,7 @@ import type { AjustesWeb, DirectusResponse, SocialMediaLink } from "~~/types"
  */
 export const useAjustesWeb = () => {
   const config = useRuntimeConfig()
-  const directusUrl = config.public.directus?.url || 'http://161.35.46.209:8055'
+  const directusUrl = config.public.directus.url
 
   /**
    * Construye la URL completa de un asset de Directus

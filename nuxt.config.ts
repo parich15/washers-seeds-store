@@ -1,3 +1,8 @@
+const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env || {}
+const directusUrl = env.NUXT_DIRECTUS_URL
+  || env.NUXT_PUBLIC_DIRECTUS_URL
+  || 'http://161.35.46.209:8055'
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -5,12 +10,21 @@ export default defineNuxtConfig({
 
   modules: [
     '@pinia/nuxt',
-    'reka-ui',
+    'reka-ui/nuxt',
     '@vueuse/nuxt',
     '@nuxtjs/tailwindcss',
     '@nuxt/image',
     'nuxt-directus'
   ],
+
+  runtimeConfig: {
+    directusUrl,
+    public: {
+      directus: {
+        url: directusUrl
+      }
+    }
+  },
 
   css: [
     '~/assets/css/fonts.css',
@@ -29,14 +43,8 @@ export default defineNuxtConfig({
     }
   ],
 
-  nitro: {
-    prerender: {
-      failOnError: false
-    }
-  },
-
   directus: {
-    url: 'http://161.35.46.209:8055'
+    url: directusUrl
   }
 
 })

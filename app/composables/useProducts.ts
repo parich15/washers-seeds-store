@@ -1,27 +1,28 @@
-import type { CollectionItem, CollectionType, DirectusResponse, getPrecioItem } from '~/types'
+import type { CollectionItem, CollectionType, DirectusResponse } from '~~/types'
 
 /**
  * Composable genérico para obtener productos de cualquier colección de Directus
  * Soporta: semillas, ropa, y futuras colecciones
  */
 export const useProducts = () => {
-  const directusUrl = 'http://161.35.46.209:8055'
+  const config = useRuntimeConfig()
+  const directusUrl = config.public.directus.url
 
   /**
    * Obtiene todos los items de una colección
    * @param collection - Nombre de la colección ('semillas', 'ropa', etc.)
    */
   const fetchCollection = async <T = CollectionItem>(collection: CollectionType) => {
-    const { data, pending, error, refresh } = await useFetch<T[]>(
+    const { data, pending, error, refresh } = await useFetch<DirectusResponse<T[]>>(
       `/api/${collection}`,
       {
-        transform: (response: DirectusResponse<T[]>) => response.data,
         key: `collection-${collection}`
       }
     )
+    const items = computed<T[]>(() => data.value?.data || [])
 
     return {
-      items: data,
+      items,
       pending,
       error,
       refresh
@@ -37,18 +38,16 @@ export const useProducts = () => {
     collection: CollectionType, 
     slug: string
   ) => {
-    const { data, pending, error, refresh } = await useFetch<T | null>(
+    const { data, pending, error, refresh } = await useFetch<DirectusResponse<T[]>>(
       `/api/${collection}/${slug}`,
       {
-        transform: (response: DirectusResponse<T[]>) => {
-          return response.data?.[0] || null
-        },
         key: `item-${collection}-${slug}`
       }
     )
+    const item = computed<T | null>(() => data.value?.data?.[0] || null)
 
     return {
-      item: data,
+      item,
       pending,
       error,
       refresh

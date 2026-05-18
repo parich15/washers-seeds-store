@@ -10,16 +10,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const directusUrl = 'http://161.35.46.209:8055'
-
     // Autenticar con Directus
-    const authResponse = await $fetch<{
+    const authResponse = await directusFetch<{
       data: {
         access_token: string
         refresh_token: string
         expires: number
       }
-    }>(`${directusUrl}/auth/login`, {
+    }>('/auth/login', {
       method: 'POST',
       body: {
         email,
@@ -30,7 +28,7 @@ export default defineEventHandler(async (event) => {
     })
 
     // Obtener datos completos del usuario
-    const userResponse = await $fetch<{
+    const userResponse = await directusFetch<{
       data: {
         id: string
         email: string
@@ -39,7 +37,7 @@ export default defineEventHandler(async (event) => {
         avatar?: string
         role: string
       }
-    }>(`${directusUrl}/users/me`, {
+    }>('/users/me', {
       headers: {
         Authorization: `Bearer ${authResponse.data.access_token}`
       }

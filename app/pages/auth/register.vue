@@ -8,8 +8,8 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const formData = ref({
-  first_name: '',
-  last_name: '',
+  firstName: '',
+  lastName: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -25,12 +25,12 @@ const showConfirmPassword = ref(false)
 const validate = () => {
   errors.value = {}
   
-  if (!formData.value.first_name) {
-    errors.value.first_name = 'El nombre es obligatorio'
+  if (!formData.value.firstName) {
+    errors.value.firstName = 'El nombre es obligatorio'
   }
   
-  if (!formData.value.last_name) {
-    errors.value.last_name = 'Los apellidos son obligatorios'
+  if (!formData.value.lastName) {
+    errors.value.lastName = 'Los apellidos son obligatorios'
   }
   
   if (!formData.value.email) {
@@ -68,8 +68,8 @@ const handleRegister = async () => {
     const result = await authStore.register({
       email: formData.value.email,
       password: formData.value.password,
-      first_name: formData.value.first_name,
-      last_name: formData.value.last_name,
+      firstName: formData.value.firstName,
+      lastName: formData.value.lastName,
       phone: undefined,
       acceptTerms: formData.value.acceptTerms
     })
@@ -123,9 +123,9 @@ const toggleConfirmPassword = () => {
                 Nombre *
               </label>
               <BaseInput
-                v-model="formData.first_name"
+                v-model="formData.firstName"
                 placeholder="Tu nombre"
-                :error="errors.name"
+                :error="errors.firstName"
               />
             </div>
             <div>
@@ -133,9 +133,9 @@ const toggleConfirmPassword = () => {
                 Apellidos *
               </label>
               <BaseInput
-                v-model="formData.last_name"
+                v-model="formData.lastName"
                 placeholder="Apellidos"
-                :error="errors.last_name"
+                :error="errors.lastName"
               />
             </div>
           </div>

@@ -7,31 +7,33 @@
  */
 export default defineEventHandler(async (event) => {
   try {
-    const collection = getRouterParam(event, 'collection')
+    const collection = assertCollectionType(getRouterParam(event, 'collection'))
     const slug = getRouterParam(event, 'slug')
     
-    if (!collection || !slug) {
+    if (!slug) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Colección o slug no especificados'
       })
     }
-
-    const directusUrl = 'http://161.35.46.209:8055'
     
     // ⚠️ CRÍTICO: Fields con productos relacionados anidados
     const fields = '*,producto.*,producto.relacionados.related_productos_id.*'
     
-    const response = await $fetch(
-      `${directusUrl}/items/${collection}?filter[producto][slug][_eq]=${slug}&fields=${fields}`,
-      {
-        method: 'GET'
+    const response = await directusFetch<{ data: any[] }>(`/items/${collection}`, {
+      method: 'GET',
+      query: {
+        fields,
+        'filter[producto][slug][_eq]': slug
       }
-    )
+    })
 
-    return response
+    return {
+      data: response.data.map(item => normalizeCollectionItem(item, collection))
+    }
   } catch (error) {
     console.error(`Error fetching item by slug:`, error)
+    if (error && typeof error === 'object' && 'statusCode' in error) throw error
     
     throw createError({
       statusCode: 500,

@@ -1,4 +1,4 @@
-import type { SeedProduct, ParaphernaliaProduct, Category, Brand } from '../../types'
+import type { SeedProduct, ParaphernaliaProduct, Category, Brand } from '~~/types'
 
 // ==================== BRANDS ====================
 export const mockBrands: Brand[] = [

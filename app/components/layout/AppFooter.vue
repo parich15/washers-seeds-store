@@ -134,7 +134,7 @@ const paymentMethods = [
           <ul v-if="section.hijos && section.hijos.length > 0" class="space-y-2">
             <li v-for="link in section.hijos" :key="link.texto">
               <NuxtLink
-                :to="link.pagina"
+                :to="normalizeCmsPath(link.pagina)"
                 class="text-sm hover:text-white transition-colors flex items-center gap-1"
               >
                 <Icon icon="mdi:chevron-right" class="text-xs" />

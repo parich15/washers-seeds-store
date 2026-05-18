@@ -203,7 +203,7 @@ const team = [
           variant="secondary"
           size="lg"
           icon="mdi:shopping"
-          @click="$router.push('/categories/semillas')"
+          @click="$router.push('/products/semillas')"
         >
           Ver Catálogo
         </BaseButton>

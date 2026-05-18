@@ -7,16 +7,10 @@ import type { MenuResponse, DirectusResponse } from '~~/types'
  */
 export default defineEventHandler(async (event) => {
   try {
-    // Directus URL - hardcoded hasta tener dominio
-    const directusUrl = 'http://161.35.46.209:8055'
-    
     // Fetch menus collection from Directus
-    const response = await $fetch<DirectusResponse<MenuResponse[]>>(
-      `${directusUrl}/items/menus`,
-      {
-        method: 'GET'
-      }
-    )
+    const response = await directusFetch<DirectusResponse<MenuResponse[]>>('/items/menus', {
+      method: 'GET'
+    })
 
     // Extract data from Directus response
     return response.data

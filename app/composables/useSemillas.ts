@@ -1,10 +1,11 @@
-import type { DirectusResponse, Semilla, getSemillaPrecio, getImagenPrincipalUrl, getGaleriaUrls } from '~~/types'
+import type { DirectusResponse, Semilla } from '~~/types'
 
 /**
  * Composable para obtener y gestionar las semillas desde Directus
  */
 export const useSemillas = () => {
-  const directusUrl = 'http://161.35.46.209:8055'
+  const config = useRuntimeConfig()
+  const directusUrl = config.public.directus.url
 
   /**
    * Obtiene todas las semillas desde la API
@@ -49,6 +50,7 @@ export const useSemillas = () => {
    * Obtiene la URL de la imagen principal de un producto
    */
   const getImageUrl = (uuid: string | null): string => {
+    if (!uuid) return 'https://placehold.co/600x600/36A9E1/FFF?text=Sin+Imagen'
     return `${directusUrl}/assets/${uuid}`
   }
 

@@ -480,7 +480,7 @@ const goBackToCart = () => {
                   variant="outline"
                   icon="mdi:shopping"
                   full-width
-                  @click="$router.push('/categories/semillas')"
+                  @click="$router.push('/products/semillas')"
                 >
                   Seguir Comprando
                 </BaseButton>
@@ -502,7 +502,7 @@ const goBackToCart = () => {
                 class="flex gap-3"
               >
                 <img
-                  :src="item.product.images[0]?.url"
+                  :src="item.product.image"
                   :alt="item.product.name"
                   class="w-16 h-16 object-cover rounded-lg"
                 >
@@ -511,7 +511,7 @@ const goBackToCart = () => {
                   <p class="text-sm text-gray-500">Cantidad: {{ item.quantity }}</p>
                 </div>
                 <p class="text-sm font-bold whitespace-nowrap">
-                  {{ (item.product.price.amount * item.quantity).toFixed(2) }}€
+                  {{ (item.product.price * item.quantity).toFixed(2) }}€
                 </p>
               </div>
             </div>

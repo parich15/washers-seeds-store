@@ -154,7 +154,7 @@ const handleSearch = () => {
         <ul class="flex items-center justify-center gap-8 py-3">
           <li v-for="item in navbarMenu.menu" :key="item.texto" class="relative group">
             <NuxtLink
-              :to="item.pagina"
+              :to="normalizeCmsPath(item.pagina)"
               class="nav-link flex items-center gap-1 py-2"
             >
               {{ item.texto }}
@@ -169,7 +169,7 @@ const handleSearch = () => {
               <ul class="py-2">
                 <li v-for="child in item.hijos" :key="child.texto">
                   <NuxtLink
-                    :to="child.pagina"
+                    :to="normalizeCmsPath(child.pagina)"
                     class="block px-4 py-2 hover:bg-gray-100 transition-colors"
                   >
                     {{ child.texto }}
@@ -216,7 +216,7 @@ const handleSearch = () => {
             <ul class="space-y-2">
               <li v-for="item in navbarMenu.menu" :key="item.texto">
                 <NuxtLink
-                  :to="item.pagina"
+                  :to="normalizeCmsPath(item.pagina)"
                   class="block py-3 px-4 rounded-lg hover:bg-gray-100 font-medium transition-colors"
                   @click="mobileMenuOpen = false"
                 >
@@ -225,7 +225,7 @@ const handleSearch = () => {
                 <ul v-if="item.hijos && item.hijos.length > 0" class="ml-4 mt-2 space-y-1">
                   <li v-for="child in item.hijos" :key="child.texto">
                     <NuxtLink
-                      :to="child.pagina"
+                      :to="normalizeCmsPath(child.pagina)"
                       class="block py-2 px-4 rounded-lg hover:bg-gray-100 text-sm transition-colors"
                       @click="mobileMenuOpen = false"
                     >

@@ -3,13 +3,13 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { getPrecioItem } from '~~/types/product'
+import { useCartStore } from '~/stores/cart'
 import type { 
   CollectionType,
   CollectionItem,
   Semilla, 
   Ropa,
   Cantidad,
-  ProductoBase,
   RelacionProducto
 } from '~~/types'
 
@@ -19,6 +19,8 @@ definePageMeta({
 })
 
 const route = useRoute()
+const cartStore = useCartStore()
+const { fadeIn, fadeOut } = useMotion()
 
 // Detectar colección y slug desde route params
 const collection = computed(() => route.params.categories as CollectionType)
@@ -41,7 +43,7 @@ const loadItem = async () => {
   
   try {
     const result = await fetchItemBySlug(collection.value, slug.value)
-    item.value = result.item.value
+    item.value = result.item.value || null
     error.value = result.error.value
   } catch (e) {
     error.value = e
@@ -130,7 +132,7 @@ const precioActual = computed(() => {
   if (collection.value === 'semillas' && selectedPack.value) {
     return {
       precio: parseFloat(selectedPack.value.precio),
-      precioDescuento: selectedPack.value.descuento 
+      precioDescuento: selectedPack.value.descuento && selectedPack.value.precio_descuento
         ? parseFloat(selectedPack.value.precio_descuento)
         : null,
       tieneDescuento: selectedPack.value.descuento,
@@ -190,10 +192,25 @@ const decrementQuantity = () => {
   }
 }
 
-// Añadir al carrito (TODO: implementar cuando se adapte el store)
 const addToCart = () => {
-  // TODO: Adaptar cartStore para trabajar con Semilla/Ropa
-  // Necesita guardar: selectedPack, selectedTalla, selectedColor
+  if (!item.value) return
+
+  cartStore.addCartLine({
+    product: {
+      id: String(item.value.id),
+      collection: collection.value,
+      slug: item.value.producto.slug,
+      name: item.value.producto.nombre,
+      image: currentImage.value,
+      price: precioActual.value.precioDescuento || precioActual.value.precio,
+      sku: item.value.producto.sku,
+      category: isSemilla.value ? semilla.value?.categoria : ropa.value?.categoria
+    },
+    quantity: quantity.value,
+    selectedOptions: isSemilla.value
+      ? { pack: selectedPack.value ? String(selectedPack.value.cantidad) : '1' }
+      : { talla: selectedTalla.value, color: selectedColor.value }
+  })
   
   addedToCart.value = true
   setTimeout(() => {
@@ -207,6 +224,15 @@ const isRopa = computed(() => collection.value === 'ropa')
 
 const semilla = computed(() => (isSemilla.value && item.value) ? item.value as Semilla : null)
 const ropa = computed(() => (isRopa.value && item.value) ? item.value as Ropa : null)
+
+const sanitizedDescription = computed(() => {
+  const html = item.value?.producto.descripcion || ''
+  return html
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+="[^"]*"/gi, '')
+    .replace(/\son\w+='[^']*'/gi, '')
+    .replace(/javascript:/gi, '')
+})
 </script>
 
 <template>
@@ -355,12 +381,12 @@ const ropa = computed(() => (isRopa.value && item.value) ? item.value as Ropa : 
                 <div class="flex items-center justify-between mb-1">
                   <span class="font-semibold">{{ pack.cantidad }} ud{{ pack.cantidad > 1 ? 's' : '' }}</span>
                   <BaseBadge v-if="pack.descuento" variant="danger" size="sm">
-                    -{{ Math.round(((parseFloat(pack.precio) - parseFloat(pack.precio_descuento)) / parseFloat(pack.precio)) * 100) }}%
+                    -{{ Math.round(((parseFloat(pack.precio) - parseFloat(pack.precio_descuento || pack.precio)) / parseFloat(pack.precio)) * 100) }}%
                   </BaseBadge>
                 </div>
                 <div class="flex items-baseline gap-2">
                   <span class="text-xl font-bold">
-                    {{ pack.descuento ? parseFloat(pack.precio_descuento).toFixed(2) : parseFloat(pack.precio).toFixed(2) }}€
+                    {{ pack.descuento ? parseFloat(pack.precio_descuento || pack.precio).toFixed(2) : parseFloat(pack.precio).toFixed(2) }}€
                   </span>
                   <span v-if="pack.descuento" class="text-sm text-gray-400 line-through">
                     {{ parseFloat(pack.precio).toFixed(2) }}€
@@ -460,12 +486,9 @@ const ropa = computed(() => (isRopa.value && item.value) ? item.value as Ropa : 
 
             <!-- Success message -->
             <Transition
-              enter-active-class="transition-all duration-300"
-              enter-from-class="opacity-0 translate-y-2"
-              enter-to-class="opacity-100 translate-y-0"
-              leave-active-class="transition-all duration-200"
-              leave-from-class="opacity-100 translate-y-0"
-              leave-to-class="opacity-0 translate-y-2"
+              :css="false"
+              @enter="fadeIn"
+              @leave="fadeOut"
             >
               <div v-if="addedToCart" class="mt-4 p-4 bg-secondary/10 border border-secondary rounded-lg flex items-center gap-2">
                 <Icon icon="mdi:check-circle" class="text-secondary text-xl" />
@@ -504,9 +527,7 @@ const ropa = computed(() => (isRopa.value && item.value) ? item.value as Ropa : 
           <!-- Descripción -->
           <div>
             <h2 class="text-2xl font-bold mb-4">Descripción</h2>
-            <p class="text-gray-700 leading-relaxed">
-              {{ item.producto.descripcion }}
-            </p>
+            <div class="prose max-w-none text-gray-700 leading-relaxed" v-html="sanitizedDescription" />
           </div>
 
           <!-- Info específica de SEMILLAS -->

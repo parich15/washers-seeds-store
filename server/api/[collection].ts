@@ -5,30 +5,22 @@
  */
 export default defineEventHandler(async (event) => {
   try {
-    const collection = getRouterParam(event, 'collection')
-    
-    if (!collection) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Colección no especificada'
-      })
-    }
-
-    const directusUrl = 'http://161.35.46.209:8055'
+    const collection = assertCollectionType(getRouterParam(event, 'collection'))
     
     // Fields para traer producto completo
     const fields = 'producto.*,*'
     
-    const response = await $fetch(
-      `${directusUrl}/items/${collection}?fields=${fields}`,
-      {
-        method: 'GET'
-      }
-    )
+    const response = await directusFetch<{ data: any[] }>(`/items/${collection}`, {
+      method: 'GET',
+      query: { fields }
+    })
 
-    return response
+    return {
+      data: response.data.map(item => normalizeCollectionItem(item, collection))
+    }
   } catch (error) {
     console.error(`Error fetching collection:`, error)
+    if (error && typeof error === 'object' && 'statusCode' in error) throw error
     
     throw createError({
       statusCode: 500,

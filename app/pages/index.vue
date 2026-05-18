@@ -3,6 +3,8 @@ import { Icon } from '@iconify/vue'
 import { Carousel, Slide, Navigation } from 'vue3-carousel'
 import 'vue3-carousel/dist/carousel.css'
 
+const { fadeIn, fadeOut } = useMotion()
+
 // Obtener semillas desde Directus
 const { fetchSemillas } = useSemillas()
 const { semillas, pending } = await fetchSemillas()
@@ -110,24 +112,28 @@ const featuredCategories = [
   {
     name: 'Semillas Feminizadas',
     slug: 'feminizadas',
+    to: '/products/semillas',
     image: 'https://placehold.co/600x400/36A9E1/FFF?text=Semillas+Feminizadas',
     description: '100% hembras garantizadas'
   },
   {
     name: 'Autoflorecientes',
     slug: 'autoflorecientes',
+    to: '/products/semillas',
     image: 'https://placehold.co/600x400/3AAA35/FFF?text=Autoflorecientes',
     description: 'Cultivo rápido y sencillo'
   },
   {
     name: 'CBD Premium',
     slug: 'cbd',
+    to: '/products/semillas',
     image: 'https://placehold.co/600x400/936037/FFF?text=CBD+Premium',
     description: 'Alto contenido en CBD'
   },
   {
     name: 'Parafernalia',
     slug: 'parafernalia',
+    to: '/products/ropa',
     image: 'https://placehold.co/600x400/36A9E1/FFF?text=Parafernalia',
     description: 'Accesorios de calidad'
   }
@@ -150,7 +156,7 @@ const featuredCategories = [
             variant="secondary"
             size="lg"
             icon="mdi:seedling"
-            @click="$router.push('/categories/semillas')"
+            @click="$router.push('/products/semillas')"
           >
             Ver Semillas
           </BaseButton>
@@ -159,7 +165,7 @@ const featuredCategories = [
             size="lg"
             icon="mdi:shopping"
             class="!text-white !border-white hover:!bg-white hover:!text-main"
-            @click="$router.push('/categories/parafernalia')"
+            @click="$router.push('/products/ropa')"
           >
             Ver Productos
           </BaseButton>
@@ -202,7 +208,7 @@ const featuredCategories = [
           <NuxtLink
             v-for="category in featuredCategories"
             :key="category.slug"
-            :to="`/categories/${category.slug}`"
+            :to="category.to"
             class="category-card group"
           >
             <img
@@ -281,7 +287,7 @@ const featuredCategories = [
             size="lg"
             icon="mdi:arrow-right"
             icon-position="right"
-            @click="$router.push('/categories/semillas')"
+            @click="$router.push('/products/semillas')"
           >
             Ver Todos los Productos
           </BaseButton>
@@ -320,12 +326,9 @@ const featuredCategories = [
 
           <!-- Success Message -->
           <Transition
-            enter-active-class="transition-all duration-300"
-            enter-from-class="opacity-0 translate-y-2"
-            enter-to-class="opacity-100 translate-y-0"
-            leave-active-class="transition-all duration-200"
-            leave-from-class="opacity-100 translate-y-0"
-            leave-to-class="opacity-0 translate-y-2"
+            :css="false"
+            @enter="fadeIn"
+            @leave="fadeOut"
           >
             <div v-if="newsletterSuccess" class="mt-4 p-4 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg">
               <Icon icon="mdi:check-circle" class="inline text-xl mr-2" />
@@ -335,12 +338,9 @@ const featuredCategories = [
 
           <!-- Error Message -->
           <Transition
-            enter-active-class="transition-all duration-300"
-            enter-from-class="opacity-0 translate-y-2"
-            enter-to-class="opacity-100 translate-y-0"
-            leave-active-class="transition-all duration-200"
-            leave-from-class="opacity-100 translate-y-0"
-            leave-to-class="opacity-0 translate-y-2"
+            :css="false"
+            @enter="fadeIn"
+            @leave="fadeOut"
           >
             <div v-if="newsletterError" class="mt-4 p-4 bg-red-500/20 backdrop-blur-sm border border-red-300/30 rounded-lg">
               <Icon icon="mdi:alert-circle" class="inline text-xl mr-2" />

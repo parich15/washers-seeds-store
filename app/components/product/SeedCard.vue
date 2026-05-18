@@ -2,8 +2,8 @@
 import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useCartStore } from '../../stores/cart'
-import { getSemillaPrecio } from '../../../types/product'
-import type { Semilla } from '../../../types'
+import { getSemillaPrecio } from '~~/types/product'
+import type { Semilla } from '~~/types'
 
 interface Props {
   semilla: Semilla
@@ -54,8 +54,23 @@ const handleAddToCart = (event: Event) => {
   event.preventDefault()
   event.stopPropagation()
   
-  // TODO: Adaptar addProductToCart para trabajar con Semillas
-  // cartStore.addProductToCart(props.semilla, 1)
+  const pack = props.semilla.cantidades[0]
+  cartStore.addCartLine({
+    product: {
+      id: String(props.semilla.id),
+      collection: 'semillas',
+      slug: props.semilla.producto.slug,
+      name: props.semilla.producto.nombre,
+      image: imageUrl.value,
+      price: precioInfo.value.precioDescuento || precioInfo.value.precio,
+      sku: props.semilla.producto.sku,
+      category: props.semilla.categoria
+    },
+    quantity: 1,
+    selectedOptions: {
+      pack: pack ? String(pack.cantidad) : '1'
+    }
+  })
   
   // Mostrar feedback visual
   addedToCart.value = true

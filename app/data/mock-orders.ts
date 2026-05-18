@@ -1,4 +1,4 @@
-import type { OrderStatus } from '../../types/common'
+import type { OrderStatus } from '~~/types/common'
 
 // Tipo simplificado para los pedidos mock
 export interface MockOrderItem {

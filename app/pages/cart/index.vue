@@ -29,7 +29,12 @@ const goToCheckout = () => {
 }
 
 const continueShopping = () => {
-  router.push('/categories/semillas')
+  router.push('/products/semillas')
+}
+
+const productPath = (item: typeof cartItems.value[number]) => {
+  if (item.product.collection === 'legacy') return `/products/${item.product.slug}`
+  return `/products/${item.product.collection}/${item.product.slug}`
 }
 </script>
 
@@ -95,12 +100,12 @@ const continueShopping = () => {
             <div class="flex gap-4">
               <!-- Product Image -->
               <NuxtLink
-                :to="`/products/${item.product.slug}`"
+                :to="productPath(item)"
                 class="flex-shrink-0"
               >
                 <img
-                  :src="item.product.images[0]?.url"
-                  :alt="item.product.images[0]?.alt || item.product.name"
+                  :src="item.product.image"
+                  :alt="item.product.name"
                   class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg"
                 >
               </NuxtLink>
@@ -108,9 +113,9 @@ const continueShopping = () => {
               <!-- Product Info -->
               <div class="flex-1 min-w-0">
                 <!-- Product Name & Brand -->
-                <NuxtLink :to="`/products/${item.product.slug}`">
-                  <p v-if="item.product.brand" class="text-sm text-gray-500 mb-1">
-                    {{ item.product.brand.name }}
+                <NuxtLink :to="productPath(item)">
+                  <p v-if="item.product.category" class="text-sm text-gray-500 mb-1">
+                    {{ item.product.category }}
                   </p>
                   <h3 class="font-semibold text-lg mb-2 hover:text-main transition-colors line-clamp-2" style="font-family: var(--font-text)">
                     {{ item.product.name }}
@@ -120,14 +125,25 @@ const continueShopping = () => {
                 <!-- Badges -->
                 <div class="flex flex-wrap gap-2 mb-3">
                   <BaseBadge
-                    v-if="item.product.type === 'seed' && item.product.packSize"
+                    v-if="item.selectedOptions?.pack"
                     variant="primary"
                     size="sm"
                   >
-                    Pack {{ item.product.packSize }} uds
+                    Pack {{ item.selectedOptions.pack }} uds
                   </BaseBadge>
-                  <BaseBadge v-if="item.product.onSale" variant="danger" size="sm">
-                    -{{ item.product.price.discount }}%
+                  <BaseBadge
+                    v-if="item.selectedOptions?.talla"
+                    variant="primary"
+                    size="sm"
+                  >
+                    Talla {{ item.selectedOptions.talla }}
+                  </BaseBadge>
+                  <BaseBadge
+                    v-if="item.selectedOptions?.color"
+                    variant="secondary"
+                    size="sm"
+                  >
+                    {{ item.selectedOptions.color }}
                   </BaseBadge>
                 </div>
 
@@ -160,10 +176,10 @@ const continueShopping = () => {
                   <div class="flex items-center justify-between sm:justify-end gap-4">
                     <div class="text-right">
                       <p class="text-2xl font-bold text-gray-900">
-                        {{ (item.product.price.amount * item.quantity).toFixed(2) }}€
+                        {{ (item.product.price * item.quantity).toFixed(2) }}€
                       </p>
                       <p v-if="item.quantity > 1" class="text-sm text-gray-500">
-                        {{ item.product.price.amount.toFixed(2) }}€ / ud
+                        {{ item.product.price.toFixed(2) }}€ / ud
                       </p>
                     </div>
                   </div>

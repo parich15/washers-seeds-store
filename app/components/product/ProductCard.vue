@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useCartStore } from '../../stores/cart'
-import type { Product } from '../../../types'
+import type { Product } from '~~/types'
 
 interface Props {
   product: Product

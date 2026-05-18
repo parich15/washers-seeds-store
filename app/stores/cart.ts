@@ -1,5 +1,21 @@
 import { defineStore } from 'pinia'
-import type { CartItem, CartState, Product, AddToCartPayload } from '../types'
+import type { AddCartLinePayload, AddToCartPayload, CartItem, CartProductSnapshot, CartState, Product } from '~~/types'
+
+const getLineKey = (product: CartProductSnapshot, selectedOptions?: Record<string, string>) => {
+  const optionsKey = selectedOptions ? JSON.stringify(Object.entries(selectedOptions).sort()) : ''
+  return `${product.collection}:${product.id}:${optionsKey}`
+}
+
+const legacyProductToSnapshot = (product: Product): CartProductSnapshot => ({
+  id: product.id,
+  collection: 'legacy',
+  slug: product.slug,
+  name: product.name,
+  image: product.images[0]?.url || 'https://placehold.co/600x600/36A9E1/FFF?text=Sin+Imagen',
+  price: product.price.amount,
+  sku: product.sku,
+  category: product.category?.name
+})
 
 export const useCartStore = defineStore('cart', {
   state: (): CartState => ({
@@ -31,21 +47,22 @@ export const useCartStore = defineStore('cart', {
 
   actions: {
     addToCart(payload: AddToCartPayload) {
-      // Buscar si el producto ya existe en el carrito
-      const existingItemIndex = this.items.findIndex(
-        item => item.product.id === payload.productId
-      )
+      const existingItemIndex = this.items.findIndex(item => item.product.id === payload.productId)
 
       if (existingItemIndex !== -1) {
         // Si existe, actualizar cantidad
-        this.items[existingItemIndex].quantity += payload.quantity
+        this.items[existingItemIndex]!.quantity += payload.quantity
       } else {
-        // Si no existe, agregarlo (necesitamos el producto completo)
-        // Por ahora, solo agregamos un placeholder
-        // TODO: Obtener producto real de la API o store de productos
         const newItem: CartItem = {
           id: Date.now().toString(),
-          product: {} as Product, // Placeholder
+          product: {
+            id: payload.productId,
+            collection: 'legacy',
+            slug: '',
+            name: 'Producto',
+            image: 'https://placehold.co/600x600/36A9E1/FFF?text=Sin+Imagen',
+            price: 0
+          },
           quantity: payload.quantity,
           selectedOptions: payload.selectedOptions,
           addedAt: new Date().toISOString()
@@ -88,7 +105,7 @@ export const useCartStore = defineStore('cart', {
     calculateTotals() {
       // Calcular subtotal
       this.subtotal = this.items.reduce((sum, item) => {
-        return sum + (item.product.price?.amount || 0) * item.quantity
+        return sum + item.product.price * item.quantity
       }, 0)
 
       // Calcular impuestos (21% IVA en España)
@@ -111,13 +128,13 @@ export const useCartStore = defineStore('cart', {
     },
 
     persistCart() {
-      if (process.client) {
+      if (import.meta.client) {
         localStorage.setItem('cart', JSON.stringify(this.items))
       }
     },
 
     loadCart() {
-      if (process.client) {
+      if (import.meta.client) {
         const cartStr = localStorage.getItem('cart')
         if (cartStr) {
           try {
@@ -131,27 +148,34 @@ export const useCartStore = defineStore('cart', {
       }
     },
 
-    // Método auxiliar para agregar producto completo
-    addProductToCart(product: Product, quantity: number = 1, options?: Record<string, string>) {
-      const existingItemIndex = this.items.findIndex(
-        item => item.product.id === product.id
-      )
+    addCartLine(payload: AddCartLinePayload) {
+      const quantity = payload.quantity || 1
+      const lineKey = getLineKey(payload.product, payload.selectedOptions)
+      const existingItemIndex = this.items.findIndex(item => item.id === lineKey)
 
       if (existingItemIndex !== -1) {
-        this.items[existingItemIndex].quantity += quantity
+        this.items[existingItemIndex]!.quantity += quantity
       } else {
-        const newItem: CartItem = {
-          id: `${product.id}-${Date.now()}`,
-          product,
+        this.items.push({
+          id: lineKey,
+          product: payload.product,
           quantity,
-          selectedOptions: options,
+          selectedOptions: payload.selectedOptions,
           addedAt: new Date().toISOString()
-        }
-        this.items.push(newItem)
+        })
       }
 
       this.calculateTotals()
       this.persistCart()
+    },
+
+    // Método auxiliar para componentes legacy basados en mocks
+    addProductToCart(product: Product, quantity: number = 1, options?: Record<string, string>) {
+      this.addCartLine({
+        product: legacyProductToSnapshot(product),
+        quantity,
+        selectedOptions: options
+      })
     }
   }
 })
